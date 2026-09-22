@@ -1,0 +1,12 @@
+-r base.txt
+
+# Testing
+pytest==8.4.2
+pytest-django==4.11.1
+pytest-cov==7.0.0
+factory-boy==3.3.3
+
+# Lint / format
+black==25.9.0
+ruff==0.14.1
+pre-commit==4.3.0

@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.sqlite3
+media/
+staticfiles/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files and secrets (examples are tracked, real files are not)
+.env
+secrets/*.secrets
+!secrets/*.secrets.example
+creds/*
+!creds/.gitkeep
+
+# Virtualenv
+env/
+venv/
+.venv/
+
+# Logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Test / coverage / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
