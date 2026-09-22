@@ -69,6 +69,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "core",
     "accounts",
+    "market",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -153,13 +154,6 @@ SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", default="")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", default="")
 
 # ------------------------------------------------------------------------------
-# Cloud Storage Credentials (optional — only needed if you use core/gcp)
-# ------------------------------------------------------------------------------
-
-GOOGLE_APPLICATION_CREDENTIALS = os.path.join(BASE_DIR, os.getenv("STORAGE_CRED_JSON", default=""))
-GS_BUCKET_NAME = os.getenv("STORAGE_BUCKET_NAME", default="")
-
-# ------------------------------------------------------------------------------
 # Time & Localization
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
@@ -171,17 +165,13 @@ USE_TZ = True
 # Static & Media Files
 # ------------------------------------------------------------------------------
 
-CONTENT_DIR = os.path.join(BASE_DIR, "content")
-STATIC_ROOT = os.path.join(CONTENT_DIR, "static")
-
+# This is an API backend: the only static files are the ones Django admin and
+# DRF's browsable API ship with, collected here by `collectstatic`.
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
-STATICFILES_DIRS = [
-    ("fonts", os.path.join(CONTENT_DIR, "fonts")),
-    ("images", os.path.join(CONTENT_DIR, "images")),
-]
 
 # ------------------------------------------------------------------------------
 # Default Auto Field

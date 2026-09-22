@@ -23,12 +23,10 @@ ignore = ["E501"]
 "app/settings.py" = ["E402", "F401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "core", "accounts"]
+known-first-party = ["app", "core", "accounts", "market"]
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "app.settings"
-python_files = ["test_*.py"]
-addopts = "--reuse-db --cov=core --cov=accounts --cov-report=term-missing"
-
-[tool.coverage.run]
-omit = ["*/migrations/*", "*/tests/*", "manage.py", "app/*"]
+# No test config: tests are deliberately out of scope for now. Adding them back
+# means reinstating pytest/pytest-django in requirements/dev.txt, a
+# [tool.pytest.ini_options] block here, and a conftest.py that runs
+# `apply_sql` against the test database — every model is managed = False, so
+# without that step the test database has no tables at all. See SCHEMA_PLAN.md.

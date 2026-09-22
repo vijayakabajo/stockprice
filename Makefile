@@ -1,4 +1,4 @@
-.PHONY: run migrate makemigrations test lint format shell docker-up docker-down docker-logs
+.PHONY: run migrate makemigrations apply-sql sql-list check-drift lint format shell
 
 run:
 	python manage.py runserver
@@ -9,8 +9,17 @@ migrate:
 makemigrations:
 	python manage.py makemigrations
 
-test:
-	pytest
+# Every model is managed = False: this is what actually builds the schema.
+apply-sql:
+	python manage.py apply_sql
+
+sql-list:
+	python manage.py apply_sql --list
+
+# Unmanaged models emit no DDL, so any output here means a model drifted
+# from its .sql file.
+check-drift:
+	python manage.py makemigrations --check --dry-run
 
 lint:
 	ruff check .
@@ -22,12 +31,3 @@ format:
 
 shell:
 	python manage.py shell
-
-docker-up:
-	docker compose up --build
-
-docker-down:
-	docker compose down
-
-docker-logs:
-	docker compose logs -f

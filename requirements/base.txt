@@ -12,9 +12,7 @@ redis==6.4.0
 # Background tasks
 celery==5.6.2
 
-# Google Cloud Storage (used by core/gcp)
-google-cloud-storage==3.10.0
-google-auth==2.49.1
+# HTTP client for the Massive API (data_provider)
 requests==2.32.5
 
 # Env handling

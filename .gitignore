@@ -18,8 +18,6 @@ staticfiles/
 .env
 secrets/*.secrets
 !secrets/*.secrets.example
-creds/*
-!creds/.gitkeep
 
 # Virtualenv
 env/
@@ -31,8 +29,5 @@ logs/*
 !logs/.gitkeep
 *.log
 
-# Test / coverage / lint caches
-.pytest_cache/
+# Lint caches
 .ruff_cache/
-.coverage
-htmlcov/

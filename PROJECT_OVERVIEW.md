@@ -52,10 +52,10 @@ shockprices/
 │   └── wsgi.py  asgi.py  celery.py
 ├── accounts/                 # custom User (email login), JWT endpoints
 ├── core/                     # shared: UnmanagedBaseModel, exceptions,
-│                             # pagination, response helpers, GCP storage
+│                             # pagination, response helpers, apply_sql
 ├── requirements/             # base.txt / dev.txt / prod.txt
 ├── secrets/                  # .env.<env>.secrets, git-ignored
-├── Dockerfile  docker-compose.yml  Makefile
+├── Makefile
 └── .github/workflows/ci.yml
 ```
 
@@ -69,8 +69,8 @@ shockprices/
 | Database | PostgreSQL via psycopg2-binary | 2.9.9 |
 | Cache | django-redis / redis | 5.4.0 / 6.4.0 |
 | Tasks | celery | 5.6.2 |
-| Storage | google-cloud-storage | 3.10.0 |
-| Test/lint | pytest-django, ruff, black, pre-commit | — |
+| HTTP client | requests | 2.32.5 |
+| Lint/format | ruff, black, pre-commit | — |
 
 ### Environment loading
 
@@ -110,12 +110,10 @@ Django's migration autodetector will not produce well.
    `python manage.py makemigrations --check --dry-run` in CI: for unmanaged
    models it should report nothing, so any output means someone changed a
    model without changing the SQL.
-3. **Solve the test-database problem.** `managed = False` means pytest's test
-   database gets no tables. The usual fixes are a session-scoped fixture that
-   runs the `sql/` files against the test DB, or flipping `managed = True`
-   for the test run only. This needs deciding before the first model lands —
-   `accounts/tests/test_accounts_api.py` is already affected by the `User`
-   model change.
+3. **Remember the test-database problem.** There are no tests right now, but
+   when they come back: `managed = False` means the test database gets no
+   tables. A `conftest.py` that runs `apply_sql` against it is the fix, and it
+   is not optional.
 4. **Note the leftover migration.** `accounts/migrations/0001_initial.py` was
    written while `User` was still managed. It should be reconciled with the
    SQL-owned `accounts_user` table rather than left to diverge.
@@ -274,8 +272,8 @@ GET /api/search/?q=apple
 GET /api/market/movers/
 ```
 
-Existing routes: `GET /api/health/`, `GET /api/image/`, and JWT endpoints
-under `/api/v1/auth/`.
+Existing routes: `GET /api/health/` and the JWT endpoints under
+`/api/v1/auth/`.
 
 ---
 
@@ -311,9 +309,9 @@ Small now, expensive later.
 | 3 | `PROJECT_NAME` defaults to `shareprice`; `DB_NAME` to `shareprice_db`. Project is ShockPrices. | Rename, or accept it deliberately — it leaks into Celery queue names. |
 | 4 | `massive_api_key` is lowercase and absent from `.env.example`. | `MASSIVE_API_KEY`, documented in `.env.example`. |
 | 5 | No `channels` / `daphne` / `uvicorn` in requirements, though `app/asgi.py` exists. | Add at Phase 5, not before. |
-| 6 | No SQL schema directory, and `managed = False` means Django will not make one. | `sql/` with ordered idempotent files + an apply command. Blocks Phase 1. |
-| 7 | Unmanaged models leave the pytest database empty. | Session fixture applying `sql/`, or `managed = True` under test. Blocks Phase 1. |
-| 8 | `accounts/migrations/0001_initial.py` predates `User.Meta.managed = False`. | Reconcile with the SQL-owned table. |
+| 6 | ~~No SQL schema directory.~~ | **Done.** `sql/` + `python manage.py apply_sql`, with checksum enforcement. See [sql/README.md](sql/README.md). |
+| 7 | Unmanaged models leave a test database empty. Tests are out of scope for now, so this is deferred, not solved. | A `conftest.py` running `apply_sql`, reinstated alongside the tests. |
+| 8 | `accounts/migrations/0001_initial.py` predates `User.Meta.managed = False`, so it still emits real DDL — confirmed via `sqlmigrate`. `accounts_user` is Django-owned while every other table is SQL-owned, and `makemigrations --check` is dirty. | Reconcile with the SQL-owned table. See follow-up 1 in [SCHEMA_PLAN.md](SCHEMA_PLAN.md). |
 | 9 | `beat_schedule` is empty — no sync is scheduled. | Populate as tasks land in Phases 2–3. |
 | 10 | Market-data plan tier and display licensing unconfirmed. | Check the dashboard; confirm real-time vs 15-minute delayed. |
 
