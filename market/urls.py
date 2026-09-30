@@ -1,5 +1,10 @@
-from django.urls import path  # noqa: F401
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from market.views import StockViewSet
 
-# Wired into app/urls.py at /api/v1/market/. Views land here in Phase 2 —
-# see PROJECT_OVERVIEW.md §5 for the planned endpoints.
-urlpatterns = []
+router = DefaultRouter()
+router.register(r'stocks', StockViewSet, basename='stock')
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

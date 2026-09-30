@@ -70,6 +70,7 @@ LOCAL_APPS = [
     "core",
     "accounts",
     "market",
+    "sync",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -157,7 +158,7 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", default="")
 # Time & Localization
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "Asia/Kolkata"
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
@@ -178,6 +179,12 @@ MEDIA_URL = "/media/"
 # ------------------------------------------------------------------------------
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ------------------------------------------------------------------------------
+# Data Provider (Massive API)
+# ------------------------------------------------------------------------------
+MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY", "")
+MASSIVE_API_BASE_URL = os.getenv("MASSIVE_API_BASE_URL", "https://api.massive.com")
 
 # ------------------------------------------------------------------------------
 # Application Logger
