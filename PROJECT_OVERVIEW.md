@@ -304,7 +304,7 @@ Small now, expensive later.
 
 | # | Issue | Fix |
 |---|---|---|
-| 1 | `TIME_ZONE = "Asia/Kolkata"`, Celery timezone the same with `enable_utc: False`. U.S. markets run on America/New_York. A "post-close" job scheduled in IST fires at the wrong time, and DST shifts it twice a year. | Run the app in UTC; derive market sessions explicitly from `/v1/marketstatus/*`. Decide before writing the first beat schedule. |
+| 1 | ~~`TIME_ZONE` / Celery timezone in Asia/Kolkata.~~ | **Done.** Django and Celery both run in UTC; the sync code derives U.S. session dates in America/New_York. |
 | 2 | `.env.example` documents MySQL on port 3306; `app/config/database.py` uses PostgreSQL on 5432. | Update `.env.example`. |
 | 3 | `PROJECT_NAME` defaults to `shareprice`; `DB_NAME` to `shareprice_db`. Project is ShockPrices. | Rename, or accept it deliberately — it leaks into Celery queue names. |
 | 4 | `massive_api_key` is lowercase and absent from `.env.example`. | `MASSIVE_API_KEY`, documented in `.env.example`. |
@@ -312,7 +312,7 @@ Small now, expensive later.
 | 6 | ~~No SQL schema directory.~~ | **Done.** `sql/` + `python manage.py apply_sql`, with checksum enforcement. See [sql/README.md](sql/README.md). |
 | 7 | Unmanaged models leave a test database empty. Tests are out of scope for now, so this is deferred, not solved. | A `conftest.py` running `apply_sql`, reinstated alongside the tests. |
 | 8 | `accounts/migrations/0001_initial.py` predates `User.Meta.managed = False`, so it still emits real DDL — confirmed via `sqlmigrate`. `accounts_user` is Django-owned while every other table is SQL-owned, and `makemigrations --check` is dirty. | Reconcile with the SQL-owned table. See follow-up 1 in [SCHEMA_PLAN.md](SCHEMA_PLAN.md). |
-| 9 | `beat_schedule` is empty — no sync is scheduled. | Populate as tasks land in Phases 2–3. |
+| 9 | ~~`beat_schedule` is empty.~~ | **Done.** Daily reference-data and post-close daily-price syncs; see README. |
 | 10 | Market-data plan tier and display licensing unconfirmed. | Check the dashboard; confirm real-time vs 15-minute delayed. |
 
 ---

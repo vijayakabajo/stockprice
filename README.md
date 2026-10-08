@@ -56,12 +56,25 @@ python manage.py apply_sql           # our schema — this is the one that matte
 python manage.py runserver
 ```
 
-Celery worker and beat, in separate terminals, once there are tasks to run:
+Celery worker and beat, in separate terminals. Beat only enqueues; the worker
+does the syncing. On Windows add `--pool=solo` to the worker (prefork is
+unsupported there, and task time limits are not enforced):
 
 ```bash
 celery -A app worker --loglevel=info
 celery -A app beat --loglevel=info
 ```
+
+Scheduled syncs (UTC, defined in `app/config/celery.py`):
+
+| Task | When | What |
+|---|---|---|
+| `sync_reference_data_task` | daily 01:15 | ticker master, then company profiles |
+| `sync_daily_prices_task` | Tue–Sat 01:45 | the day's OHLCV for every stock, plus any recent session that failed |
+
+The same jobs run by hand: `sync_stocks`, `sync_stock_details [--limit N]`,
+`sync_daily_prices [--date YYYY-MM-DD] [--days N]`. Every run is logged to
+`sync_data_sync_job`, and a Redis lock stops two runs of one job overlapping.
 
 `http://localhost:8000/` returns landing JSON, `/api/health/` checks the
 database and cache, `/admin/` is the Django admin.

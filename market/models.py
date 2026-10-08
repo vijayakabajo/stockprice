@@ -93,6 +93,9 @@ class Stock(UnmanagedBaseModel):
     # Last refresh from the provider, as opposed to updated_at which moves on
     # any write. Drives "which tickers are stale" without a separate job table.
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    # Last profile fetch from the ticker-details endpoint, set even when the
+    # provider returns nothing, so the details sync can refresh oldest-first.
+    details_synced_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     # Maintained by the market_stock_set_updated_at trigger as well, so rows
     # written by COPY during a backfill are correct too.

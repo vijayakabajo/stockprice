@@ -1,5 +1,7 @@
 import os
 
+from celery.schedules import crontab
+
 
 def get_celery_config(env_type):
     """
@@ -35,8 +37,10 @@ def get_celery_config(env_type):
         "result_serializer": "json",
         "accept_content": ["json"],
         # -- Timezone --------------------------------------------------------
-        "timezone": "Asia/Kolkata",
-        "enable_utc": False,
+        # UTC, matching Django's TIME_ZONE. U.S. market sessions are derived
+        # explicitly in America/New_York by the sync code, not from here.
+        "timezone": "UTC",
+        "enable_utc": True,
         # -- Task behaviour ----------------------------------------------------
         # Acknowledge task only after it completes, not when received.
         # Prevents task loss if the worker crashes mid-execution.
@@ -47,12 +51,21 @@ def get_celery_config(env_type):
         # Keep results for 1 hour - enough for polling, not enough to bloat Redis
         "result_expires": 3600,
         # -- Beat schedule -------------------------------------------------------
-        # Example (uncomment and point at a real task):
-        # "beat_schedule": {
-        #     "my-periodic-task": {
-        #         "task": "myapp.tasks.my_task",
-        #         "schedule": crontab(minute=0),  # every hour at :00
-        #     },
-        # },
-        "beat_schedule": {},
+        # Times are UTC. Extended-hours trading ends at 20:00 ET, which is
+        # 00:00 UTC in summer (EDT) and 01:00 UTC in winter (EST), so both
+        # jobs below run after the session is final all year round.
+        "beat_schedule": {
+            # Ticker master, then company profiles. Runs first so tickers
+            # that listed today exist before their prices arrive.
+            "sync-reference-data-daily": {
+                "task": "sync.tasks.sync_reference_data_task",
+                "schedule": crontab(hour=1, minute=15),
+            },
+            # Tue-Sat UTC covers the Mon-Fri sessions. With no arguments the
+            # task also re-syncs any recent session that has not succeeded.
+            "sync-daily-prices": {
+                "task": "sync.tasks.sync_daily_prices_task",
+                "schedule": crontab(hour=1, minute=45, day_of_week="tue-sat"),
+            },
+        },
     }

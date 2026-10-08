@@ -31,3 +31,6 @@ logs/*
 
 # Lint caches
 .ruff_cache/
+
+# Celery beat schedule state
+celerybeat-schedule*
