@@ -12,6 +12,8 @@ migrations. Two rules follow:
 """
 
 from django.db import models
+from django.db.models import Case, Q, Value, When
+from django.db.models.functions import Lower
 
 from core.models import UnmanagedBaseModel
 
@@ -33,6 +35,91 @@ class Timespan(models.TextChoices):
             "15m": (15, "minute"),
             "1h": (1, "hour"),
         }[self.value]
+
+
+class SecurityType(models.TextChoices):
+    """The site's security labels. Other provider types pass through lowercased."""
+
+    COMMON = "common", "Common stock"
+    ADR = "adr", "ADR"
+    SPAC = "spac", "SPAC"
+    ETF = "etf", "ETF"
+    PREFERRED = "pfd", "Preferred stock"
+    WARRANT = "warrant", "Warrant"
+    RIGHT = "right", "Right"
+    UNIT = "unit", "Unit"
+    FUND = "fund", "Fund"
+
+
+class SizeBucket(models.TextChoices):
+    """Conventional market-cap buckets; thresholds live in sql/0008."""
+
+    MEGA = "mega", "Mega cap"
+    LARGE = "large", "Large cap"
+    MID = "mid", "Mid cap"
+    SMALL = "small", "Small cap"
+    MICRO = "micro", "Micro cap"
+    NANO = "nano", "Nano cap"
+    UNKNOWN = "unknown", "Unknown"
+
+
+class Exchange(UnmanagedBaseModel):
+    """
+    A U.S. stock exchange, keyed by MIC. Provider fields are overwritten by
+    sync_exchanges; display_name and slug are editorial, and the sync leaves
+    them alone once the row exists.
+    """
+
+    mic = models.CharField(max_length=10, primary_key=True)
+
+    operating_mic = models.CharField(max_length=10, blank=True, default="")
+    name = models.CharField(max_length=255, blank=True, default="")
+    acronym = models.CharField(max_length=50, blank=True, default="")
+    exchange_type = models.CharField(max_length=20, blank=True, default="")
+    url = models.CharField(max_length=500, blank=True, default="")
+    provider_id = models.IntegerField(null=True, blank=True)
+
+    display_name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
+
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta(UnmanagedBaseModel.Meta):
+        db_table = "market_exchange"
+        ordering = ["display_name"]
+        verbose_name = "exchange"
+        verbose_name_plural = "exchanges"
+
+    def __str__(self):
+        return f"{self.display_name} ({self.mic})"
+
+
+class Sector(UnmanagedBaseModel):
+    """
+    One SIC code in use. Built by refresh_sectors from market_stock; name,
+    slug and primer are editorial once the row exists.
+    """
+
+    sic_code = models.CharField(max_length=10, primary_key=True)
+    sic_description = models.CharField(max_length=255, blank=True, default="")
+
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    primer = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta(UnmanagedBaseModel.Meta):
+        db_table = "market_sector"
+        ordering = ["name"]
+        verbose_name = "sector"
+        verbose_name_plural = "sectors"
+
+    def __str__(self):
+        return f"{self.name} ({self.sic_code})"
 
 
 class Stock(UnmanagedBaseModel):
@@ -88,6 +175,44 @@ class Stock(UnmanagedBaseModel):
     # Dates ------------------------------------------------------------------
     list_date = models.DateField(null=True, blank=True)
     delisted_utc = models.DateTimeField(null=True, blank=True)
+
+    # Classification ---------------------------------------------------------
+    # Written by the ticker sync from `name`; see market.classification.
+    display_name = models.CharField(max_length=255, blank=True, default="")
+    # Generated columns, computed by Postgres (sql/0008). The expressions are
+    # mirrored here only so Django knows never to write these columns; the
+    # SQL is the definition that runs. Change both together.
+    security_type = models.GeneratedField(
+        expression=Case(
+            When(
+                Q(asset_type="CS")
+                & (
+                    Q(sic_code="6770")
+                    | Q(sic_description__icontains="blank check")
+                    | (Q(sic_code="") & Q(description__icontains="blank check"))
+                ),
+                then=Value("spac"),
+            ),
+            When(asset_type="ADRC", then=Value("adr")),
+            When(asset_type="CS", then=Value("common")),
+            default=Lower("asset_type"),
+        ),
+        output_field=models.CharField(max_length=20, choices=SecurityType.choices),
+        db_persist=True,
+    )
+    size_bucket = models.GeneratedField(
+        expression=Case(
+            When(market_cap__isnull=True, then=Value("unknown")),
+            When(market_cap__gte=200_000_000_000, then=Value("mega")),
+            When(market_cap__gte=10_000_000_000, then=Value("large")),
+            When(market_cap__gte=2_000_000_000, then=Value("mid")),
+            When(market_cap__gte=300_000_000, then=Value("small")),
+            When(market_cap__gte=50_000_000, then=Value("micro")),
+            default=Value("nano"),
+        ),
+        output_field=models.CharField(max_length=10, choices=SizeBucket.choices),
+        db_persist=True,
+    )
 
     # Bookkeeping ------------------------------------------------------------
     # Last refresh from the provider, as opposed to updated_at which moves on

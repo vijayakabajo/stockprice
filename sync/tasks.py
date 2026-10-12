@@ -36,7 +36,21 @@ def sync_stocks_task():
 
 @shared_task(soft_time_limit=3 * 3600, time_limit=3 * 3600 + 300, **SYNC_TASK_OPTIONS)
 def sync_stock_details_task(limit=None):
-    _run(services.sync_stock_details, limit=limit)
+    """Profiles, then sectors: new SIC codes only arrive with the profiles."""
+    try:
+        _run(services.sync_stock_details, limit=limit)
+    finally:
+        _run(services.refresh_sectors)
+
+
+@shared_task(soft_time_limit=600, time_limit=900, **SYNC_TASK_OPTIONS)
+def refresh_sectors_task():
+    _run(services.refresh_sectors)
+
+
+@shared_task(soft_time_limit=600, time_limit=900, **SYNC_TASK_OPTIONS)
+def sync_exchanges_task():
+    _run(services.sync_exchanges)
 
 
 @shared_task(**SYNC_TASK_OPTIONS)

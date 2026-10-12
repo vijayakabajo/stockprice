@@ -1,6 +1,7 @@
 from django.db import models
 from core.models import UnmanagedBaseModel
 
+
 class DataSyncJob(UnmanagedBaseModel):
     """
     Log of data synchronization operations.
@@ -11,6 +12,8 @@ class DataSyncJob(UnmanagedBaseModel):
         STOCK_MASTER = "stock_master", "Stock Master (Tickers)"
         STOCK_DETAILS = "stock_details", "Stock Details (Profiles)"
         DAILY_PRICES = "daily_prices", "Daily Prices"
+        EXCHANGES = "exchanges", "Exchanges"
+        SECTORS = "sectors", "Sectors"
         # Others can be added later
 
     class Status(models.TextChoices):

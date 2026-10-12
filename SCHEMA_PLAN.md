@@ -37,11 +37,16 @@ BEGIN;
 COMMIT;
 ```
 
-It is worth generating anyway. It records the model state, which makes
-`makemigrations --check --dry-run` a working drift alarm in CI: for unmanaged
-models it should print nothing, so **any** output means a model changed without
-its SQL. That check is the only automated thing standing between you and a
-model that quietly disagrees with its table.
+It is worth generating anyway: it records which models exist and their Meta,
+so `makemigrations --check --dry-run` flags a model added, removed, or switched
+back to `managed = True`.
+
+**It does not catch field drift.** Django's autodetector ignores field changes
+on unmanaged models — verified when `display_name`, `security_type` and
+`size_bucket` were added to `Stock` and `makemigrations market` reported only
+the two new models. A field added, removed or retyped on one side only goes
+unnoticed until a query fails. Until something compares models against
+`information_schema`, that check is a code-review job.
 
 ### Two traps specific to `managed = False`
 
@@ -71,13 +76,25 @@ sql/
 ├── 0000_extensions.sql               pg_trgm, set_updated_at() trigger function
 ├── 0001_create_market_stock.sql      market_stock
 ├── 0002_create_market_daily_price.sql  market_daily_price
-└── 0003_create_market_intraday_bar.sql market_intraday_bar
+├── 0003_create_market_intraday_bar.sql market_intraday_bar
+├── 0004_sync_data_sync_job.sql       sync_data_sync_job
+├── 0005_add_stock_details_synced_at.sql
+├── 0006_create_market_exchange.sql   market_exchange
+├── 0007_create_market_sector.sql     market_sector
+└── 0008_add_stock_classification.sql display_name; generated security_type, size_bucket
 
 market/
-├── models.py     Stock, DailyPrice, IntradayBar, Timespan
-├── admin.py      Stock only, read-only
-└── migrations/0001_initial.py        state only, no DDL
+├── models.py          Stock, Exchange, Sector, DailyPrice, IntradayBar, choices
+├── classification.py  display-name and sector-name rules
+├── admin.py           Stock read-only; Exchange/Sector editorial fields editable
+└── migrations/        state only, no DDL
 ```
+
+**Generated columns.** `security_type` and `size_bucket` are computed by
+Postgres and mapped as `GeneratedField`, so Django never writes them. The
+model repeats the SQL expression only because `GeneratedField` requires one;
+the SQL is what runs. Change both together, in a new `.sql` file that drops
+and re-adds the column.
 
 Applied and smoke-tested against the dev database: rows insert, the composite
 primary keys resolve, reverse FK traversal works, the OHLC check constraints

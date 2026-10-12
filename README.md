@@ -69,12 +69,19 @@ Scheduled syncs (UTC, defined in `app/config/celery.py`):
 
 | Task | When | What |
 |---|---|---|
-| `sync_reference_data_task` | daily 01:15 | ticker master, then company profiles |
+| `sync_reference_data_task` | daily 01:15 | ticker master, then company profiles, then sectors |
 | `sync_daily_prices_task` | Tue–Sat 01:45 | the day's OHLCV for every stock, plus any recent session that failed |
+| `sync_exchanges_task` | 1st of the month 01:00 | exchange list (one API call) |
 
 The same jobs run by hand: `sync_stocks`, `sync_stock_details [--limit N]`,
-`sync_daily_prices [--date YYYY-MM-DD] [--days N]`. Every run is logged to
-`sync_data_sync_job`, and a Redis lock stops two runs of one job overlapping.
+`sync_daily_prices [--date YYYY-MM-DD] [--days N]`, `sync_exchanges`, and
+`refresh_sectors` (no API calls). `classify_stocks` recomputes every display
+name after the naming rules in `market/classification.py` change. Every run is
+logged to `sync_data_sync_job`, and a Redis lock stops two runs of one job
+overlapping.
+
+On the free Massive tier (5 calls/minute) the client waits out each 429, so
+even a one-call job can take a few minutes.
 
 `http://localhost:8000/` returns landing JSON, `/api/health/` checks the
 database and cache, `/admin/` is the Django admin.
@@ -85,6 +92,13 @@ database and cache, `/admin/` is the Django admin.
 make sql-list        # what's applied, what's pending
 make apply-sql       # apply pending sql/ files
 make check-drift     # any output means a model disagrees with its .sql file
+```
+
+A database whose tables were built before `apply_sql` tracked them shows every
+file as pending. Record the ones already in place, then apply the rest:
+
+```bash
+python manage.py apply_sql --fake 0000_extensions.sql 0001_create_market_stock.sql ...
 ```
 
 The full workflow — SQL first, then the model, then `makemigrations` to record

@@ -63,6 +63,11 @@ def get_celery_config(env_type):
             },
             # Tue-Sat UTC covers the Mon-Fri sessions. With no arguments the
             # task also re-syncs any recent session that has not succeeded.
+            # Exchanges barely change; one API call a month.
+            "sync-exchanges-monthly": {
+                "task": "sync.tasks.sync_exchanges_task",
+                "schedule": crontab(hour=1, minute=0, day_of_month=1),
+            },
             "sync-daily-prices": {
                 "task": "sync.tasks.sync_daily_prices_task",
                 "schedule": crontab(hour=1, minute=45, day_of_week="tue-sat"),

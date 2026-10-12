@@ -136,6 +136,11 @@ class MassiveClient:
             return {}
         return data.get("results") or {}
 
+    def get_exchanges(self, asset_class: str = "stocks", locale: str = "us") -> List[Dict[str, Any]]:
+        """Reference list of exchanges, TRFs and SIPs for one asset class. One call, no paging."""
+        data = self._get("/v3/reference/exchanges", params={"asset_class": asset_class, "locale": locale})
+        return data.get("results") or []
+
     def get_grouped_daily(self, day: date, adjusted: bool = True) -> List[Dict[str, Any]]:
         """
         Daily OHLCV bars for every U.S. stock on one session, in one call.

@@ -16,7 +16,8 @@ from django.utils.dateparse import parse_date, parse_datetime
 from psycopg2.extras import execute_values
 
 from data_provider.massive import MassiveClient
-from market.models import Stock
+from market.classification import display_name, sector_name, unique_slug
+from market.models import Exchange, Sector, Stock
 from sync.models import DataSyncJob
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ SESSION_FINAL_HOUR_ET = 20
 
 # Fields owned by the ticker list (master) and by ticker details (profile).
 MASTER_FIELDS = [
-    "name", "market", "locale", "primary_exchange", "asset_type", "active",
+    "name", "display_name", "market", "locale", "primary_exchange", "asset_type", "active",
     "currency_name", "cik", "composite_figi", "share_class_figi",
     "list_date", "delisted_utc", "last_synced_at",
 ]
@@ -122,9 +123,11 @@ def _stock_from_ticker(data, now):
     def s(field, key=None, default=""):
         return _clip(Stock, field, data.get(key or field) or default)
 
+    name = s("name")
     return Stock(
         ticker=_clip(Stock, "ticker", data["ticker"]),
-        name=s("name"),
+        name=name,
+        display_name=_clip(Stock, "display_name", display_name(name)),
         market=s("market", default="stocks"),
         locale=s("locale", default="us"),
         primary_exchange=s("primary_exchange"),
@@ -186,6 +189,152 @@ def sync_stocks(batch_size=1000):
 
         job.records_processed = seen
         logger.info(f"Stock sync complete. {seen} upserted, {deactivated} marked inactive.")
+
+
+def classify_stocks(batch_size=2000):
+    """
+    Recomputes display_name for every stock from its stored name. The ticker
+    sync keeps it current; this is for a backfill, or after the naming rules
+    in market.classification change. No API calls.
+    """
+    changed = []
+    for stock in Stock.objects.only("id", "name", "display_name").iterator(chunk_size=batch_size):
+        new = _clip(Stock, "display_name", display_name(stock.name))
+        if new != stock.display_name:
+            stock.display_name = new
+            changed.append(stock)
+    Stock.objects.bulk_update(changed, ["display_name"], batch_size=batch_size)
+    logger.info(f"Display names recomputed: {len(changed)} changed.")
+    return len(changed)
+
+
+# ---------------------------------------------------------------------------
+# Exchanges
+# ---------------------------------------------------------------------------
+
+# Site labels for the exchanges our listings use. Applied only when a row is
+# first inserted; after that the admin owns display_name and slug.
+EXCHANGE_DISPLAY_NAMES = {
+    "XNAS": "Nasdaq",
+    "XNYS": "NYSE",
+    "ARCX": "NYSE Arca",
+    "BATS": "Cboe BZX",
+    "XASE": "NYSE American",
+}
+EXCHANGE_PROVIDER_FIELDS = [
+    "operating_mic",
+    "name",
+    "acronym",
+    "exchange_type",
+    "url",
+    "provider_id",
+    "last_synced_at",
+]
+
+
+def sync_exchanges():
+    """
+    Upserts the U.S. stock exchange list from Massive, one call. Entries
+    without a MIC (some reporting facilities) are skipped: nothing lists on
+    them, and the MIC is what market_stock.primary_exchange holds.
+    """
+    with tracked_job(DataSyncJob.JobType.EXCHANGES) as job:
+        now = timezone.now()
+        # Existing rows keep their editorial label and slug: the upsert below
+        # only updates provider fields, but the values sent must still be valid.
+        existing = {e.mic: e for e in Exchange.objects.only("mic", "display_name", "slug")}
+        taken = {e.slug for e in existing.values()}
+
+        # Exchanges first, so if a MIC is shared with a reporting facility the
+        # exchange's details win; a MIC twice in one upsert is an error.
+        results = sorted(MassiveClient().get_exchanges(), key=lambda d: d.get("type") != "exchange")
+        rows, seen = [], set()
+        for data in results:
+            mic = _clip(Exchange, "mic", data.get("mic"))
+            if not mic or mic in seen:
+                continue
+            seen.add(mic)
+            if mic in existing:
+                label, slug = existing[mic].display_name, existing[mic].slug
+            else:
+                label = EXCHANGE_DISPLAY_NAMES.get(mic) or data.get("name") or mic
+                slug = unique_slug(label, taken, mic)
+                taken.add(slug)
+            rows.append(
+                Exchange(
+                    mic=mic,
+                    operating_mic=_clip(Exchange, "operating_mic", data.get("operating_mic")),
+                    name=_clip(Exchange, "name", data.get("name")),
+                    acronym=_clip(Exchange, "acronym", data.get("acronym")),
+                    exchange_type=_clip(Exchange, "exchange_type", data.get("type")),
+                    url=_clip(Exchange, "url", data.get("url")),
+                    provider_id=data.get("id"),
+                    display_name=_clip(Exchange, "display_name", label),
+                    slug=slug,
+                    last_synced_at=now,
+                )
+            )
+
+        Exchange.objects.bulk_create(
+            rows,
+            update_conflicts=True,
+            unique_fields=["mic"],
+            update_fields=EXCHANGE_PROVIDER_FIELDS,
+        )
+        job.records_processed = len(rows)
+        logger.info(f"Exchange sync complete. {len(rows)} upserted.")
+
+
+# ---------------------------------------------------------------------------
+# Sectors
+# ---------------------------------------------------------------------------
+
+
+def refresh_sectors():
+    """
+    Adds a market_sector row for every SIC code in market_stock that does not
+    have one, and refreshes sic_description on the rest. name, slug and
+    primer are never overwritten. No API calls: SIC codes arrive with the
+    ticker-details sync.
+    """
+    with tracked_job(DataSyncJob.JobType.SECTORS) as job:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT sic_code, MAX(sic_description) FROM market_stock "
+                "WHERE sic_code <> '' GROUP BY sic_code"
+            )
+            in_use = dict(cursor.fetchall())
+
+        sectors = {s.sic_code: s for s in Sector.objects.all()}
+        taken = {s.slug for s in sectors.values()}
+
+        created, renamed = [], []
+        for code, description in sorted(in_use.items()):
+            description = _clip(Sector, "sic_description", description)
+            sector = sectors.get(code)
+            if sector is None:
+                name = sector_name(description) or f"SIC {code}"
+                slug = unique_slug(name, taken, code)
+                taken.add(slug)
+                created.append(
+                    Sector(
+                        sic_code=code,
+                        sic_description=description,
+                        name=_clip(Sector, "name", name),
+                        slug=_clip(Sector, "slug", slug),
+                    )
+                )
+            elif sector.sic_description != description:
+                sector.sic_description = description
+                renamed.append(sector)
+
+        Sector.objects.bulk_create(created)
+        Sector.objects.bulk_update(renamed, ["sic_description"])
+        job.records_processed = len(created) + len(renamed)
+        logger.info(
+            f"Sector refresh complete. {len(created)} added, {len(renamed)} descriptions updated, "
+            f"{len(in_use)} SIC codes in use."
+        )
 
 
 # ---------------------------------------------------------------------------

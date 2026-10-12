@@ -57,6 +57,15 @@ class Command(BaseCommand):
             dest="list_only",
             help="Show applied and pending files, then exit.",
         )
+        parser.add_argument(
+            "--fake",
+            nargs="+",
+            metavar="FILE",
+            help=(
+                "Record these pending files as applied without running them. For a "
+                "database whose tables were created before it was tracked."
+            ),
+        )
 
     def handle(self, *args, **options):
         directory = sql_dir()
@@ -96,6 +105,10 @@ class Command(BaseCommand):
                 self.stdout.write(f"  [{mark:>7}] {path.name}")
             return
 
+        if options["fake"]:
+            self._fake(connection, pending, options["fake"], options["dry_run"])
+            return
+
         if not pending:
             self.stdout.write(self.style.SUCCESS("Schema is up to date."))
             return
@@ -110,6 +123,23 @@ class Command(BaseCommand):
             self.stdout.write(f"\n{len(pending)} file(s) pending. Nothing was changed.")
         else:
             self.stdout.write(self.style.SUCCESS(f"\nApplied {len(pending)} file(s)."))
+
+    def _fake(self, connection, pending, names, dry_run):
+        # Only pending files can be faked: faking an applied file would hide a
+        # checksum change, and an unknown name is almost certainly a typo.
+        pending_by_name = {path.name: digest for path, digest in pending}
+        unknown = [name for name in names if name not in pending_by_name]
+        if unknown:
+            raise CommandError(f"Not pending (or not in sql/): {', '.join(unknown)}")
+
+        record = f"INSERT INTO {TRACKING_TABLE} (filename, checksum) VALUES (%s, %s)"
+        for name in names:
+            if dry_run:
+                self.stdout.write(f"  would fake {name}")
+                continue
+            with connection.cursor() as cursor:
+                cursor.execute(record, [name, pending_by_name[name]])
+            self.stdout.write(f"  faked {name}")
 
     def _apply(self, connection, path: Path, digest: str):
         body = path.read_text(encoding="utf-8")
