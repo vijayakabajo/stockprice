@@ -1,616 +1,366 @@
-# StockPrices --- Project Summary
+# StockPrices --- Project Plan
 
-## 1. Project Overview
-
-**StockPrices** is a U.S. stock market information platform focused on
-providing users with current and historical information about publicly
-traded U.S. companies.
-
-The platform will provide:
-
--   Stock prices
--   Historical price charts
--   Market statistics
--   Company information
--   Financial data
--   Corporate actions
--   Market movers
--   Real-time price updates
--   Stock search and individual stock pages
-
-The initial data provider will be **Massive**, subject to the
-appropriate commercial/display licensing for production use.
+Roadmap for the backend behind the **Equity Profiles** site (placeholder
+brand). What we are building, how we work and the open questions live in
+[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md); the table-building workflow in
+[SCHEMA_PLAN.md](SCHEMA_PLAN.md); provider endpoints in
+[MASSIVE_APIS.md](MASSIVE_APIS.md).
 
 ------------------------------------------------------------------------
 
-## 2. Main Objective
+## 1. Goal
 
-Build a reliable stock-data platform where a user can search for a U.S.
-stock such as:
+> **An answer-first profile page for every U.S. listed company — correct,
+> dated, sourced and indexable — plus directory, sector and exchange hubs,
+> served by a backend that owns its data.**
 
--   AAPL
--   MSFT
--   NVDA
--   TSLA
--   AMZN
+The frontend prototype (`Stockprice_pages_prototype/`) sets the target. It
+renders entirely from our `market_stock` table today; prices, charts,
+financials and news are placeholders. The plan fills those in, in order of
+what the pages need.
 
-and view:
+### What changed from the previous plan
 
--   Current Price
--   Price Change
--   Change %
--   Open
--   High
--   Low
--   Previous Close
--   Volume
--   Market Cap
--   Historical Chart
--   Company Information
--   Financial Information
--   Corporate Actions
-
-The system should maintain its own database of historical/reference data
-while using a real-time feed for current market information.
+| Before | Now |
+|---|---|
+| Trading-style stock page: live price first, company info second | Profile page: company facts first, delayed quote as one block |
+| Real-time WebSocket was Phase 5 | Real-time is last; a delayed snapshot covers the prototype |
+| Market movers, indices on the home page | Not in the prototype; deferred |
+| "Do not build the frontend first" | A frontend prototype exists; the API is shaped by its pages |
+| Search, sectors, exchanges were Phase 7 | Directory, hubs and search are the next phase — they are the site |
+| No SEO concerns | Sitemaps, slugs, `indexable`, `lastmod`, as-of dates are core |
 
 ------------------------------------------------------------------------
 
-## 3. Core Data Categories
+## 2. Pages and What They Need
 
-### A. Stock / Company Data
-
-Store relatively stable information:
-
--   Ticker
--   Company Name
--   Exchange
--   Primary Exchange
--   Currency
--   CIK
--   FIGI
--   Industry
--   Sector / SIC
--   Company Description
--   Website
--   Logo
--   Listing Date
--   Active / Inactive Status
--   Market Cap
--   Employee Count
-
-### B. Current Market Data
-
-Real-time data:
-
--   Last Traded Price
--   Price Change
--   Change %
--   Open
--   High
--   Low
--   Previous Close
--   Volume
--   VWAP
--   Bid Price
--   Bid Quantity
--   Ask Price
--   Ask Quantity
--   Timestamp
-
-This data should primarily be handled through **Redis + WebSockets**,
-rather than continuously writing every update to PostgreSQL.
-
-### C. Historical Price Data
-
-#### Daily
-
--   Date
--   Open
--   High
--   Low
--   Close
--   Volume
--   VWAP
-
-Stored permanently in PostgreSQL.
-
-#### Intraday
-
-Initially support:
-
--   1 minute
--   5 minute
--   15 minute
--   1 hour
-
-Do **not** store every individual trade/tick initially.
-
-### D. Financial Data
-
-For each company:
-
--   Revenue
--   Gross Profit
--   Operating Income
--   Net Income
--   EPS
--   Assets
--   Liabilities
--   Equity
--   Cash
--   Debt
--   Operating Cash Flow
--   Free Cash Flow
-
-Display/calculated ratios:
-
--   P/E
--   P/B
--   EPS
--   ROE
--   ROCE
--   Debt / Equity
--   Dividend Yield
-
-Financial data should be stored by reporting period rather than
-overwritten.
-
-### E. Corporate Data
-
-#### Corporate Actions
-
--   Dividends
--   Stock Splits
--   Reverse Splits
--   Other Corporate Actions
-
-#### Company Filings / Announcements
-
--   Announcement
--   Filing Type
--   Title
--   Description
--   Published Date
--   Document URL
+| Page | Needs from the backend |
+|---|---|
+| Home | Search, headline stats, counts by sector/exchange/size, largest companies, as-of date |
+| Stock directory | Server-paginated list; filter by exchange, type, sector, size; sort by market cap, name, ticker, employees |
+| Sector index / hub | Sectors with counts and total cap; hub stats (companies, combined cap, total employees, average cap), ranked companies, primer text |
+| Exchange index / hub | Same as sectors, grouped by exchange |
+| Stock profile | Reference fields, derived classification, key metrics, market cap context, peers, related companies, IDs, EDGAR link, as-of dates |
+| Stock profile — SPAC / ADR variants | `security_type` flag drives the notice; SPACs hide peers and are `noindex` |
+| Profile placeholders | Quote, price chart, financials, latest news |
 
 ------------------------------------------------------------------------
 
-## 4. Main Website Features
+## 3. Core Data
 
-### Home
+### A. Company reference data — *have it*
 
--   Search stocks
--   Market overview
--   Top gainers
--   Top losers
--   Most active
--   Major indices
+Ticker, name, ticker root, exchange (MIC), asset type, currency, CIK,
+composite and share-class FIGI, SIC code and description, description,
+website, address, phone, logo/icon URL, market cap, share-class and weighted
+shares outstanding, employees, round lot, list date, active/delisted.
 
-### Stock Search
+Source: `/v3/reference/tickers` and `/v3/reference/tickers/{ticker}`, synced
+daily into `market_stock`.
 
-Search by:
+### B. Classification — *to build*
 
--   Ticker
--   Company name
+Display name, security type (common / ADR / SPAC / other), size bucket,
+sector (with slug), exchange display name (with slug). Computed once in the
+database; see PROJECT_OVERVIEW §4 for the rules.
 
-Example:
+### C. Editorial content — *to build*
+
+Sector primers (2–3 plain sentences per sector), glossary terms, and later
+per-page bylines/review dates. Stored in the database, edited through the
+Django admin.
+
+### D. Daily prices — *have the pipeline*
+
+Date, OHLC, volume, VWAP, transactions — in `market_daily_price`, synced
+nightly. Feeds the price chart, the 52-week range and the nightly market cap
+refresh.
+
+### E. Delayed quote — *to build*
+
+Last price, change, change %, day open/high/low, previous close, volume,
+timestamp. Polled from the snapshot endpoint into Redis. Never written to
+PostgreSQL row by row.
+
+### F. Fundamentals summary — *to build*
+
+What the financials block shows: revenue TTM, net income TTM, EPS, P/E,
+dividend yield — each with its period and as-of date. Backed by stored
+statements (appended per reporting period, never overwritten) and dividends.
+
+### G. News and filings — *to build*
+
+Headline, publisher, URL, published time, tickers. Filings start as the
+EDGAR link from CIK and grow into a filings index later.
+
+### H. Intraday and real-time — *later*
+
+`market_intraday_bar` exists but stays empty until a page needs intraday
+charts. WebSocket streaming only if the product asks for live ticking prices.
+
+------------------------------------------------------------------------
+
+## 4. Architecture
 
 ``` text
-Apple
-→ AAPL
-→ Apple Inc.
-→ NASDAQ
-```
-
-### Stock Details Page
-
-Example:
-
-``` text
-/stocks/AAPL
-```
-
-Contains:
-
--   Company name
--   Current price
--   Price change
--   Change %
--   Open
--   High
--   Low
--   Previous close
--   Volume
--   Market cap
--   Price chart
--   Company overview
--   Financials
--   Ratios
--   Dividends
--   Splits
--   Corporate actions
--   Historical data
-
-------------------------------------------------------------------------
-
-## 5. Backend Architecture
-
-``` text
-                         Massive
-                            │
-              ┌─────────────┴─────────────┐
-              │                           │
-           REST API                  WebSocket
-              │                           │
-              ▼                           ▼
-       Django Data Layer          Real-time Worker
-              │                           │
-              ▼                           ▼
-         PostgreSQL                     Redis
-              │                           │
-              └──────────────┬────────────┘
-                             ▼
-                       Django REST API
+                          Massive
+                             │
+                          REST API
                              │
                              ▼
-                         Frontend
+                   data_provider/ client
+                             │
+                             ▼
+                    Celery sync tasks ─────────► Redis
+                             │             quotes, response cache,
+                             ▼             data version, locks
+                        PostgreSQL               ▲
+                             │                   │
+                             └──► Django REST API┘
+                                        │
+                                        ▼
+                        SSR / SSG frontend → CDN → search engines
 ```
 
-### PostgreSQL
-
-Permanent data:
-
--   Companies
--   Daily Prices
--   Intraday Bars
--   Financials
--   Corporate Actions
--   Announcements
--   Sync History
-
-### Redis
-
-Temporary/high-frequency data:
-
--   Current Quotes
--   Live Prices
--   WebSocket state
--   Caching
--   Celery broker/result backend
-
-### Celery
-
-Background processing:
-
--   Daily price synchronization
--   Ticker synchronization
--   Financial data synchronization
--   Corporate-action synchronization
--   Data validation
--   Periodic cleanup
+-   **PostgreSQL** --- companies, classification, sectors, exchanges,
+    prices, fundamentals, news, editorial content, sync history.
+-   **Redis** --- delayed quotes, versioned response cache, sync locks,
+    Celery broker/results.
+-   **Celery** --- reference sync, daily price sync, market cap refresh,
+    quote polling, fundamentals and news syncs, data-version bump.
 
 ------------------------------------------------------------------------
 
-## 6. Django Application Structure
-
-Start small:
+## 5. Application Structure
 
 ``` text
 stockprices/
-│
-├── config/
-│
-├── market/
-│   ├── models.py
-│   ├── serializers.py
-│   ├── views.py
-│   ├── urls.py
-│   └── services/
-│
-├── data_provider/
-│   ├── massive.py
-│   └── services.py
-│
-├── sync/
-│   ├── models.py
-│   ├── tasks.py
-│   └── services.py
-│
-├── realtime/
-│   ├── consumers.py
-│   └── services.py
-│
-└── fundamentals/
-    ├── models.py
-    ├── services.py
-    └── tasks.py
+├── app/              settings, urls, celery bootstrap
+├── core/             base model, response envelope, pagination, apply_sql
+├── accounts/         User + JWT (unused by the site for now)
+├── data_provider/    Massive client — the only code that knows Massive
+├── market/           Stock, Sector, Exchange, DailyPrice, IntradayBar
+│                     serializers, views, filters, aggregate queries
+├── sync/             DataSyncJob, sync services, tasks, commands
+├── content/          SectorPrimer / GlossaryTerm editorial content   (new)
+├── fundamentals/     statements, dividends, summary metrics          (later)
+└── news/             articles                                       (later)
 ```
+
+------------------------------------------------------------------------
+
+## 6. Database Additions
+
+One `sql/` file plus one model each, per the SCHEMA_PLAN workflow.
+
+| # | Change | Phase |
+|---|---|---|
+| 0006 | `market_exchange` — MIC (PK), slug, display name, acronym, operating MIC | 2 |
+| 0007 | `market_sector` — SIC code (PK), slug, display name, raw SIC description | 2 |
+| 0008 | `market_stock` + `display_name` column, generated `security_type` and `size_bucket`, indexes on `sic_code`, `security_type`, `size_bucket`, `(active, market_cap DESC)` | 2 |
+| 0009 | `content_glossary_term`, sector primer column or table | 2 |
+| 0010 | `market_stock.market_cap_as_of` — date the market cap refers to | 3 |
+| 00NN | `fundamentals_financial_statement`, `market_dividend`, `market_stock_split` | 4 |
+| 00NN | `news_article` + `news_article_ticker` | 5 |
+
+------------------------------------------------------------------------
+
+## 7. API
+
+All endpoints are public, read-only, under `/api/v1/`, and return the
+existing `api_response()` envelope. The current `/api/stocks/` routes move
+under `/api/v1/` to match auth.
+
+### Conventions
+
+-   **Every response carries `as_of`.** Lists and hubs report the last
+    successful reference-data sync; a profile reports its own
+    `details_synced_at`; quotes report the snapshot timestamp.
+-   **Slugs, not labels, in URLs and filters:** `sector=blank-checks`,
+    `exchange=nasdaq`, `type=spac`, `size=mid`.
+-   **Server-side pagination,** page-number with `count`, so the
+    directory can show "Showing 50 of 6,412".
+-   **`indexable` is a field,** decided by the backend: false for
+    inactive listings, SPACs, and hubs below the minimum company count.
+-   **Caching:** `Cache-Control` and `ETag` on every response, Redis-backed
+    per data version.
+
+### Endpoints
+
+| Endpoint | Serves | Notes |
+|---|---|---|
+| `GET /api/v1/overview/` | Home | headline stats, counts by sector/exchange/size, largest companies |
+| `GET /api/v1/stocks/` | Directory, hub tables | filters `exchange`, `type`, `sector`, `size`, `q`, `active`; ordering `-market_cap`, `name`, `ticker`, `-total_employees`; paginated |
+| `GET /api/v1/stocks/{ticker}/` | Profile | reference fields, derived fields, flags, `edgar_url`, `as_of` |
+| `GET /api/v1/stocks/{ticker}/peers/` | Profile | `context` (top 5 + self, with rank), `peers` (same sector, fallback exchange), `related` (3) |
+| `GET /api/v1/sectors/` | Sector index | slug, name, company count, total cap |
+| `GET /api/v1/sectors/{slug}/` | Sector hub | stats, primer, `indexable`; companies via `/stocks/?sector=` |
+| `GET /api/v1/exchanges/` | Exchange index | slug, name, listing count, total cap |
+| `GET /api/v1/exchanges/{slug}/` | Exchange hub | stats; companies via `/stocks/?exchange=` |
+| `GET /api/v1/search/?q=` | Search box | ticker prefix first, then name trigram; small typeahead payload |
+| `GET /api/v1/sitemap/` | Sitemap build | every indexable stock, sector and exchange with `lastmod` |
+| `GET /api/v1/glossary/` | Profile glossary | editorial terms |
 
 Later:
 
-``` text
-accounts/
-watchlists/
-notifications/
-```
+| Endpoint | Serves | Notes |
+|---|---|---|
+| `GET /api/v1/stocks/{ticker}/quote/` | Quote block | delayed snapshot from Redis, day range, 52-week range, market status |
+| `GET /api/v1/stocks/{ticker}/prices/?range=1y` | Price chart | from `market_daily_price` |
+| `GET /api/v1/stocks/{ticker}/financials/` | Financials block | revenue TTM, net income TTM, EPS, P/E, dividend yield, each dated |
+| `GET /api/v1/stocks/{ticker}/news/` | Latest news | |
+
+Existing routes: `GET /api/health/` and the JWT endpoints under
+`/api/v1/auth/`.
 
 ------------------------------------------------------------------------
 
-## 7. Initial Database Models
+## 8. Development Phases
 
-Start with:
+### Phase 1 --- Data Foundation ✅
 
--   Stock
--   DailyPrice
--   IntradayBar
--   DataSyncJob
+Django, PostgreSQL, Redis, Celery, Massive client, `sql/` + `apply_sql`,
+`DataSyncJob` tracking, UTC scheduling.
 
-Then add:
+### Phase 1b --- Reference and Price Pipeline ✅
 
--   FinancialStatement
--   FinancialRatio
--   Dividend
--   StockSplit
--   CorporateAction
--   Announcement
+``` text
+/v3/reference/tickers ──► market_stock          (sync_stocks)
+/v3/reference/tickers/{t} ──► profile fields    (sync_stock_details)
+grouped daily bars ──► market_daily_price       (sync_daily_prices)
+```
 
-Avoid creating 20+ models before the basic data pipeline works.
+Scheduled daily. Basic `GET /api/stocks/` and `/api/stocks/{ticker}/` exist.
+
+### Phase 2 --- Profile Site API *(next)*
+
+The prototype rendered from the API, for the full U.S. universe.
+
+1.  Move market routes under `/api/v1/`.
+2.  `market_exchange` synced from `/v3/reference/exchanges`, with display
+    names and slugs.
+3.  `market_sector` populated from the distinct SIC codes in
+    `market_stock`, with slugs; editable display names.
+4.  `display_name`, `security_type`, `size_bucket` on `market_stock`;
+    backfill `display_name` for existing rows.
+5.  Profile serializer: all reference fields, derived fields, `as_of`,
+    `indexable`, `edgar_url`.
+6.  Directory endpoint with filters, ordering and page-number pagination.
+7.  Aggregates: overview, sector and exchange index and hub stats.
+8.  Peers / market cap context / related companies.
+9.  Search: ticker prefix, then `pg_trgm` name match.
+10. Sitemap endpoint with `lastmod`.
+11. `content` app: sector primers and glossary, admin-editable.
+12. Response cache keyed by a data version that each successful reference
+    sync bumps; `Cache-Control` and `ETag` headers.
+13. Settle universe rules: which asset types get pages, what is
+    `noindex`.
+
+Done when every prototype page --- home, directory, sectors, sector hub,
+exchanges, exchange hub, and all three profile variants --- can be built
+from API responses alone, with no client-side classification logic.
+
+### Phase 3 --- Quote and Chart
+
+``` text
+Snapshot endpoint ──► Celery poll ──► Redis ──► /quote/
+market_daily_price ──► /prices/?range= ──► chart
+market_daily_price ──► 52-week high / low
+close × shares outstanding ──► market_cap, market_cap_as_of
+/v1/marketstatus/now ──► "market open / closed" label
+```
+
+-   Confirm plan tier and display licensing first.
+-   Daily price backfill (Flat Files) so charts and 52-week ranges have
+    a year of history.
+-   Splits sync, so the stored series stays split-adjusted.
+-   Market cap recomputed nightly from the close, so it moves with price
+    and its as-of date is honest.
+
+Done when the quote block and price chart on the profile show real,
+dated, delayed data.
+
+### Phase 4 --- Financials
+
+-   Income statements, balance sheets, cash flow from
+    `/stocks/financials/v1/...`, stored per reporting period.
+-   Dividends from `/v3/reference/dividends`.
+-   Summary endpoint: revenue TTM, net income TTM, EPS, P/E (computed
+    on read from the latest close), dividend yield --- each with period
+    and as-of.
+
+Done when the financials block shows figures for every company that
+reports them, and an honest "not reported" for SPACs and gaps.
+
+### Phase 5 --- News and Related
+
+-   News sync from `/v2/reference/news`, linked to tickers.
+-   Related companies from `/v1/related-companies/{t}` to improve on the
+    sector/exchange heuristic.
+-   Logos: server-side proxy and cache, if the brand wants them over
+    monograms.
+-   Filings index, if the page grows a filings list.
+
+### Phase 6 --- Market Features *(only if the product asks)*
+
+Top gainers / losers / most active, market overview, indices.
+
+### Phase 7 --- Intraday and Real-Time *(only if the product asks)*
+
+`market_intraday_bar` sync for 1m/5m/15m/1h; WebSocket worker →
+Redis → Django Channels for live ticking prices. Requires `channels` and
+an ASGI server.
+
+### Phase 8 --- User Features *(not in the prototype)*
+
+Watchlists, favourites, alerts, preferences. `accounts` already exists.
 
 ------------------------------------------------------------------------
 
-## 8. Data Synchronization Strategy
+## 9. Cross-Cutting Work
 
-### Stock Master
+Not a phase --- done alongside Phase 2 and kept up.
 
-Synchronize periodically:
-
-``` text
-Massive
-   ↓
-Ticker Reference API
-   ↓
-Stock table
-```
-
-Keep inactive/delisted stocks instead of deleting them.
-
-### Daily Prices
-
-After the U.S. market closes:
-
-``` text
-Massive
-   ↓
-Daily market data
-   ↓
-Validate
-   ↓
-Upsert DailyPrice
-   ↓
-Mark synchronization successful
-```
-
-A `DataSyncJob` table should track:
-
--   Job Type
--   Provider
--   Data Date
--   Start Time
--   End Time
--   Status
--   Records Processed
--   Error
-
-This prevents silent stale-data problems.
-
-### Real-Time Prices
-
-During market hours:
-
-``` text
-Massive WebSocket
-        ↓
-Real-time worker
-        ↓
-Redis
-        ↓
-Django WebSocket
-        ↓
-Frontend
-```
-
-Do not write every real-time update to PostgreSQL.
+-   **CI:** `makemigrations --check --dry-run` and `apply_sql` against a
+    service Postgres, alongside lint.
+-   **Tests:** reinstate pytest with a `conftest.py` that applies `sql/`
+    to the test database; start with serializers and aggregate queries.
+-   **Staleness alarms:** a stale reference or price sync (no successful
+    `DataSyncJob` within its window) should be visible --- in the
+    health check and in `as_of` on every response.
+-   **Config clean-up:** `PROJECT_NAME` / `DB_NAME` defaults, the
+    `accounts` migration.
 
 ------------------------------------------------------------------------
 
-## 9. Backend API
+## 10. MVP Definition
 
-Initial endpoints:
-
-``` http
-GET /api/stocks/
-GET /api/stocks/{ticker}/
-GET /api/stocks/{ticker}/prices/
-GET /api/stocks/{ticker}/intraday/
-GET /api/stocks/{ticker}/financials/
-GET /api/stocks/{ticker}/corporate-actions/
-GET /api/stocks/{ticker}/dividends/
-GET /api/search/?q=apple
-GET /api/market/movers/
+``` text
+Search "Agilent"
+   ↓
+/stocks/A
+   ├── Display name, ticker, exchange, sector, type tag
+   ├── Market cap (dated), employees, size, HQ
+   ├── About, key metrics, key facts, IDs, EDGAR link
+   ├── Market cap in context, peers, related companies
+   └── Quote and financials shown as "coming soon"
 ```
 
-Later:
+plus the directory, sector and exchange hubs, a sitemap, and correct
+`noindex` on SPACs and inactive listings --- for every active U.S.
+listed company, refreshed daily.
 
-``` http
-GET /api/market/indices/
-GET /api/stocks/{ticker}/news/
-GET /api/stocks/{ticker}/financial-ratios/
-```
+The MVP is **Phase 2**. Phases 3 and 4 replace the two placeholders that
+matter most; everything after is optional.
 
 ------------------------------------------------------------------------
 
-## 10. Development Chronology
+## 11. Open Questions
 
-### Phase 1 --- Data Foundation
+Tracked with their working defaults in PROJECT_OVERVIEW §7:
 
-``` text
-Django
-↓
-PostgreSQL
-↓
-Redis
-↓
-Celery
-↓
-Massive API client
-```
-
-### Phase 2 --- Stock Master
-
-``` text
-Stock model
-↓
-Massive ticker API
-↓
-Import U.S. stocks
-↓
-Stock API
-```
-
-Target:
-
-``` http
-GET /api/stocks/AAPL/
-```
-
-### Phase 3 --- Historical Prices
-
-``` text
-DailyPrice model
-↓
-Massive historical API
-↓
-Import historical data
-↓
-Daily synchronization
-```
-
-Target:
-
-``` http
-GET /api/stocks/AAPL/prices/
-```
-
-### Phase 4 --- Intraday Data
-
-``` text
-IntradayBar model
-↓
-Massive aggregates
-↓
-1m / 5m / 15m
-↓
-Chart API
-```
-
-### Phase 5 --- Real-Time
-
-``` text
-Massive WebSocket
-↓
-Worker
-↓
-Redis
-↓
-Django WebSocket
-```
-
-### Phase 6 --- Fundamentals
-
-Add:
-
--   Financials
--   Ratios
--   Dividends
--   Splits
--   Corporate actions
-
-### Phase 7 --- Search and Market Features
-
-Add:
-
--   Stock search
--   Top gainers
--   Top losers
--   Most active
--   Market overview
--   Indices
-
-### Phase 8 --- User Features
-
-Only after the data system is reliable:
-
--   Authentication
--   Watchlists
--   Favorites
--   Price alerts
--   User preferences
-
-------------------------------------------------------------------------
-
-## 11. MVP Definition
-
-The first usable version should support:
-
-``` text
-Search
-   ↓
-AAPL
-   ↓
-Stock Details
-   ├── Current Price
-   ├── Change
-   ├── OHLC
-   ├── Volume
-   ├── Historical Chart
-   ├── Company Information
-   └── Basic Financial Data
-```
-
-Behind it:
-
-``` text
-Massive
-   ↓
-Django
-   ├── PostgreSQL
-   ├── Redis
-   └── Celery
-```
-
-Do not build the frontend first.
-
-Get this pipeline working first:
-
-``` text
-Massive
-   ↓
-Django
-   ↓
-PostgreSQL
-   ↓
-GET /api/stocks/AAPL/
-   ↓
-Correct response
-```
-
-Then add historical data, real-time data, and finally the frontend.
-
-------------------------------------------------------------------------
-
-## 12. Project Goal
-
-> **StockPrices is a U.S. stock market information platform that
-> aggregates real-time, historical, company, financial, and
-> corporate-action data into searchable stock profiles, charts, and
-> market insights.**
+-   SIC industry vs grouped sector for hub pages
+-   Which asset types get pages, and which are `noindex`
+-   Frontend stack (assumed SSR/SSG, outside this repo)
+-   Delayed vs real-time quote, and display licensing
+-   Logos vs monograms

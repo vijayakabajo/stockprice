@@ -1,329 +1,316 @@
 # ShockPrices — Project Overview
 
-A backend-first U.S. stock market data platform. Django + DRF serves a REST API
-(and later WebSockets) built on market data sourced from **Massive**
-(<https://massive.com>). The database schema is owned outside Django —
-every model is `managed = False`.
+A backend for a U.S. equity **profile site**: one indexable, answer-first page
+per listed company, plus directory, sector and exchange hub pages. Django +
+DRF over market data from **Massive** (<https://massive.com>), with the
+database schema owned as SQL rather than by Django migrations.
 
-This document describes **what exists today**, **what the system is meant to
-become**, and the **decisions and open questions** that follow from the
-current setup. For the feature/phase roadmap see
-[stockprices_planning.md](stockprices_planning.md).
+This document covers **what we are building**, **where the project stands**,
+and **how we work**. Related docs:
 
----
-
-## 1. Scope
-
-**In scope (backend):**
-
-- Reference data for U.S. listed companies (ticker, name, exchange, sector, logo, status)
-- Historical daily OHLCV, permanently stored
-- Intraday bars (1m / 5m / 15m / 1h) for charting
-- Current quotes / snapshots, served from Redis rather than PostgreSQL
-- Fundamentals: income statement, balance sheet, cash flow, ratios
-- Corporate actions: dividends, splits, ticker events, IPOs
-- Filings and news
-- Market movers, market status, exchange reference data
-- Search by ticker and company name
-
-**Out of scope for now:** frontend, user watchlists/alerts, options, crypto,
-forex, futures. Auth exists in the boilerplate but no user-facing feature
-depends on it yet.
+- [stockprices_planning.md](stockprices_planning.md) — phases, database additions, API endpoints
+- [SCHEMA_PLAN.md](SCHEMA_PLAN.md) — how a table gets built
+- [MASSIVE_APIS.md](MASSIVE_APIS.md) — the provider's endpoints and what we use them for
+- [README.md](README.md) — setup and day-to-day commands
 
 ---
 
-## 2. Current State of the Codebase
+## 1. What We Are Building
 
-Single commit so far: *"Rebuild as a clean Django REST boilerplate"*. No
-market-data code exists yet — what is in place is the platform underneath it.
+A static HTML prototype lives in `Stockprice_pages_prototype/` (outside this
+repo). It is a design prototype, not production code, but it fixes the shape
+of the product. Working brand: **Equity Profiles** (placeholder), built by
+6sMarketers.
 
-```
-shockprices/
-├── app/                      # Django project
-│   ├── settings.py           # env-driven, splits config into app/config/*
-│   ├── config/
-│   │   ├── database.py       # PostgreSQL, CONN_MAX_AGE=60, health checks
-│   │   ├── redis.py          # cache config per ENV_TYPE
-│   │   ├── celery.py         # broker/backend, per-env Redis DB, empty beat_schedule
-│   │   ├── cors.py           # ALLOWED_HOSTS, CORS, MIDDLEWARE
-│   │   ├── logger.py
-│   │   └── rest_framework.py
-│   ├── urls.py               # "", /admin/, /api/, /api/v1/auth/
-│   └── wsgi.py  asgi.py  celery.py
-├── accounts/                 # custom User (email login), JWT endpoints
-├── core/                     # shared: UnmanagedBaseModel, exceptions,
-│                             # pagination, response helpers, apply_sql
-├── requirements/             # base.txt / dev.txt / prod.txt
-├── secrets/                  # .env.<env>.secrets, git-ignored
-├── Makefile
-└── .github/workflows/ci.yml
-```
+The prototype is rendered entirely from a dump of our own `market_stock`
+table — 13 sample tickers. Every number it shows that is not a placeholder
+already exists in our database. Prices, charts, financials and news are drawn
+as labelled placeholders.
 
-### Installed stack
+### Pages
 
-| Concern | Choice | Version |
+| Prototype file | Page | Shows |
 |---|---|---|
-| Framework | Django | 6.0.3 |
-| API | djangorestframework | 3.17.0 |
-| Auth | djangorestframework-simplejwt | 5.5.1 (access 60m, refresh 7d, rotating) |
-| Database | PostgreSQL via psycopg2-binary | 2.9.9 |
-| Cache | django-redis / redis | 5.4.0 / 6.4.0 |
-| Tasks | celery | 5.6.2 |
-| HTTP client | requests | 2.32.5 |
-| Lint/format | ruff, black, pre-commit | — |
+| `index.html` | Home | Search; headline stats (company count, combined market cap, sectors covered, data as-of date); browse by sector, exchange and size; largest companies |
+| `stocks.html` | Stock directory | The whole U.S. universe, filterable by exchange, type, sector and size, sortable by market cap, name, ticker, employees |
+| `sectors.html` | Sector index | Every sector with company count and total market cap |
+| `sector.html` | Sector hub | Sector stats (companies, combined cap, total employees, average cap), companies ranked by market cap |
+| `exchanges.html` | Exchange index | Every exchange with listing count and total market cap |
+| `exchange.html` | Exchange hub | Same as the sector hub, grouped by exchange |
+| `stock.html` | Stock profile | Full company profile — see below |
+| `stock-spac.html` | Profile, SPAC variant | "Pre-merger shell" notice, no peers, kept out of search indexes |
+| `stock-adr.html` | Profile, ADR variant | "U.S. listed ADR" notice |
+| `Stock Profile Page.html` | Profile, long-form layout | Same data plus byline, table of contents, key takeaways, sector primer, glossary, FAQ, sources, structured data |
 
-### Environment loading
+### What a stock profile shows
 
-`app/settings.py` reads `.env` for `ENV_TYPE`, then overlays
-`secrets/.env.<ENV_TYPE>.secrets`. Valid `ENV_TYPE` values are `local`,
-`preproduction`, `production`. A missing secrets file is tolerated locally.
-Celery uses Redis DB 0 (local), 4 (preprod), 3 (prod) and prefixes queue
-names with `PROJECT_NAME`.
+| Block | Content | Status |
+|---|---|---|
+| Header | logo/monogram, name, ticker, exchange, sector, type tag (Common / ADR / SPAC), Active | have the data |
+| Snapshot and key metrics | market cap (dated), shares outstanding, employees, cap per employee, size bucket, HQ, round lot | have the data |
+| About | company description | have the data |
+| Market cap in context, peers, related companies | comparisons within sector or exchange | have the data |
+| Key facts, IDs, filings | exchange, security type, SIC, CIK, FIGIs, address, website, SEC EDGAR link | have the data |
+| FAQ, takeaways | generated from the fields above | have the data |
+| Quote and price chart | price, change, day range, 52-week range | placeholder |
+| Financials | revenue, net income, EPS, P/E, dividend yield | placeholder |
+| Latest news | headlines | placeholder |
+
+### What the prototype tells us
+
+- **Reference data is the product, prices are a feature.** The MVP is a
+  correct, dated, sourced page for every U.S. listed company — not a trading
+  terminal. The prototype only ever promises a *delayed* price.
+- **It is programmatic SEO.** Every sector and exchange is its own indexable
+  hub page. Sitemaps, stable URLs, last-modified dates and "keep out of the
+  index" rules are part of the backend's job.
+- **Every figure is dated.** "Indicative, as of 22 Sep 2026" appears on
+  nearly every block.
+- **Classification belongs to the backend.** The prototype works out display
+  names, sectors, type tags and size buckets in the browser. Those are
+  filter and grouping keys, so they get computed once, in the database.
 
 ---
 
-## 3. The `managed = False` Decision
+## 2. Scope
 
-`core/models.py` provides the base that every model in this project inherits:
+**In scope:**
 
-```python
-class UnmanagedBaseModel(models.Model):
-    class Meta:
-        abstract = True
-        managed = False
+- Company reference data — the backbone of every page
+- Directory, sector and exchange listings for the full U.S. universe
+- Aggregates, rankings, peers and search
+- SEO support: sitemap data, indexability rules, as-of dates
+- Editorial content: sector primers, glossary terms
+- Delayed quotes and daily price history
+- Fundamentals summary and news
+- Later, only if the product asks: market movers, intraday charts, live prices
+
+**Out of scope:** the frontend itself, user accounts and watchlists (nothing
+in the prototype needs them), options, crypto, forex, futures.
+
+---
+
+## 3. Where the Project Stands
+
+The data pipeline for reference data and daily prices is built and
+scheduled. What is missing is the layer that serves it the way the pages
+need it.
+
+```
+stockprices/
+├── app/                      # Django project; settings split into app/config/*
+├── accounts/                 # custom User (email login), JWT
+├── core/                     # UnmanagedBaseModel, response envelope,
+│                             # exception handler, pagination, health, apply_sql
+├── data_provider/            # Massive client, retries + backoff
+├── market/                   # Stock, DailyPrice, IntradayBar
+├── sync/                     # DataSyncJob, sync services, Celery tasks, commands
+├── sql/                      # 0000–0005: the schema of record
+├── requirements/  secrets/  Makefile  .github/workflows/ci.yml
 ```
 
-`accounts.User` already sets `managed = False` directly.
-
-**What this means:** Django does not create, alter, or drop tables. The
-schema is authored as SQL and applied outside Django. Django only maps onto
-it. The benefit for this project is real — market-data tables want hand-tuned
-composite primary keys, partitioning by date, and index strategies that
-Django's migration autodetector will not produce well.
-
-**What this obligates us to do:**
-
-1. **Own the DDL as versioned SQL.** Add a `sql/` directory with ordered,
-   idempotent migration files, and a documented way to apply them. Without
-   this, the schema exists only on the machine of whoever created it.
-2. **Keep models and SQL in sync deliberately.** Run
-   `python manage.py makemigrations --check --dry-run` in CI: for unmanaged
-   models it should report nothing, so any output means someone changed a
-   model without changing the SQL.
-3. **Remember the test-database problem.** There are no tests right now, but
-   when they come back: `managed = False` means the test database gets no
-   tables. A `conftest.py` that runs `apply_sql` against it is the fix, and it
-   is not optional.
-4. **Note the leftover migration.** `accounts/migrations/0001_initial.py` was
-   written while `User` was still managed. It should be reconciled with the
-   SQL-owned `accounts_user` table rather than left to diverge.
-
----
-
-## 4. Data Provider: Massive
-
-API key comes from the Massive dashboard (<https://massive.com/dashboard>).
-It is currently in `.env` as `massive_api_key` — **rename to
-`MASSIVE_API_KEY`** to match every other variable in the file, and add it to
-`.env.example` (commented, no value).
-
-### REST
-
-- Base URL: `https://api.massive.com`
-- Auth, either form:
-  - `?apiKey=YOUR_API_KEY`
-  - `Authorization: Bearer YOUR_API_KEY` ← prefer this; keys do not belong in URLs, query strings get logged
-- Response envelope is consistent: `{ "status", "results": [...], "count", "next_url", "request_id" }`
-- Pagination is cursor-based via `next_url`
-
-Endpoints relevant to our scope:
-
-| Need | Endpoint |
+| Area | State |
 |---|---|
-| Ticker list | `GET /v3/reference/tickers` |
-| Ticker detail | `GET /v3/reference/tickers/{ticker}` |
-| Ticker types | `GET /v3/reference/tickers/types` |
-| Related companies | `GET /v1/related-companies/{ticker}` |
-| Custom bars (daily + intraday) | `GET /v2/aggs/ticker/{stocksTicker}/range/{multiplier}/{timespan}/{from}/{to}` |
-| Whole-market daily bars | `GET /v2/aggs/grouped/locale/us/market/stocks/{date}` |
-| Previous day bar | `GET /v2/aggs/ticker/{stocksTicker}/prev` |
-| Daily open/close | `GET /v1/open-close/{stocksTicker}/{date}` |
-| Single ticker snapshot | `GET /v2/snapshot/locale/us/markets/stocks/tickers/{stocksTicker}` |
-| Full market snapshot | `GET /v2/snapshot/locale/us/markets/stocks/tickers` |
-| Top movers | `GET /v2/snapshot/locale/us/markets/stocks/{direction}` |
-| Last trade / quote | `GET /v2/last/trade/{stocksTicker}`, `GET /v2/last/nbbo/{stocksTicker}` |
-| Income statements | `GET /stocks/financials/v1/income-statements` |
-| Balance sheets | `GET /stocks/financials/v1/balance-sheets` |
-| Cash flow statements | `GET /stocks/financials/v1/cash-flow-statements` |
-| Ratios | `GET /stocks/financials/v1/ratios` |
-| Dividends | `GET /v3/reference/dividends` |
-| Splits | `GET /v3/reference/splits` |
-| IPOs | `GET /vX/reference/ipos` |
-| Ticker events | `GET /vX/reference/tickers/{id}/events` |
-| Filings index | `GET /stocks/filings/vX/index` |
-| News | `GET /v2/reference/news` |
-| Market status | `GET /v1/marketstatus/now`, `GET /v1/marketstatus/upcoming` |
-| Exchanges | `GET /v3/reference/exchanges` |
-| Trade condition codes | `GET /v3/reference/conditions` |
-| Indicators (SMA/EMA/RSI/MACD) | `GET /v1/indicators/{sma,ema,rsi,macd}/{stockTicker}` |
+| Ticker master | Synced daily into `market_stock`. Delisted rows kept as inactive. |
+| Company profiles | Description, address, SIC, market cap, shares, employees filled daily, stalest first. |
+| Daily prices | Whole market loaded nightly per session; failed recent sessions retried. |
+| Job tracking | Every run logged as a `DataSyncJob`; a Redis lock prevents overlapping runs. |
+| Schedule | Reference data 01:15 UTC daily; daily prices 01:45 UTC Tue–Sat. |
+| Serving layer | A basic stock list and detail. No filtering, classification, aggregates or as-of dates yet. |
+| Schema workflow | `sql/` + `apply_sql`, checksums enforced. |
 
-Massive also offers **Flat Files** (S3 bulk download) — the right tool for the
-initial multi-year historical backfill. Paging the aggregates endpoint 10,000
-tickers deep is the slow way to do a one-time load.
+### Still to build for the prototype
 
-### WebSocket
+1. Classification: display name, security type, size bucket, sector, exchange name.
+2. Sector and exchange reference data, with URL slugs.
+3. Directory, hub, profile, search and sitemap data for the pages.
+4. As-of dates on everything served.
+5. A cache that a successful sync invalidates.
+6. Quote, chart, financials, news — the placeholders.
 
-- Real-time: `wss://socket.massive.com/stocks`
-- 15-min delayed: `wss://delayed.massive.com/stocks`
-- Handshake: connect → `{"action":"auth","params":"<KEY>"}` → `{"action":"subscribe","params":"AM.AAPL,AM.MSFT"}`
-- Channels: `AM` (per-minute aggregates), `A` (per-second), `T` (trades), `Q` (NBBO quotes), `LULD`, `NOI`, `business/stocks/FMV`
-- **One concurrent connection per asset class** by default. This is an
-  architectural constraint, not a detail: a single dedicated worker process
-  must own the connection, fan out into Redis, and be the only subscriber.
-  Django request handlers must never open one.
+### Stack
 
-### Constraints to settle before building on this
-
-- **Plan gating.** The docs mark endpoint access and recency (real-time vs
-  delayed) per plan tier. Which tier the account is on decides whether
-  "current price" means real-time or 15-minute delayed — and that changes
-  what the UI can honestly claim. Confirm from the dashboard.
-- **Display licensing.** Redistributing real-time U.S. market data publicly
-  is a licensing matter separate from API access. Needs resolving before
-  launch, not at launch.
-- **Official Python client** exists (`massive-com` on GitHub) and handles
-  auth, retries, and response parsing. Worth evaluating against a thin
-  hand-rolled client — but either way it stays behind our own provider
-  interface (see §5).
+| Concern | Choice |
+|---|---|
+| Framework | Django 6.0.3 + Django REST Framework 3.17.0 |
+| Database | PostgreSQL |
+| Cache / broker | Redis |
+| Background jobs | Celery 5.6.2 (worker + beat) |
+| Auth | simplejwt (not used by the site yet) |
+| Lint / format | ruff, black, pre-commit |
 
 ---
 
-## 5. Target Architecture
+## 4. How We Work
+
+### The schema is SQL, not Django migrations
+
+Every model is `managed = False`, inheriting `core.models.UnmanagedBaseModel`.
+Django maps onto tables it does not own. A change goes, in one commit:
 
 ```
-                         Massive
-                            │
-              ┌─────────────┴─────────────┐
-           REST API                  WebSocket
-              │                           │
-              ▼                           ▼
-     data_provider/ client          realtime worker
-              │                           │
-              ▼                           ▼
-     Celery sync tasks ──────────►      Redis
-              │                           │
-              ▼                           │
-         PostgreSQL ◄────────┐            │
-              │              │            │
-              └──────► Django REST API ◄──┘
-                             │
-                             ▼
-                      Frontend (later)
+write sql/000N_*.sql  →  apply_sql  →  write the model  →  makemigrations (state only)
 ```
 
-**PostgreSQL** holds the permanent record: companies, daily prices, intraday
-bars, financials, corporate actions, filings, sync job history.
+SQL first, model second. Applied `.sql` files are immutable. Always write
+`class Meta(UnmanagedBaseModel.Meta):` — a bare `class Meta:` silently turns
+`managed` back on. Full workflow in [SCHEMA_PLAN.md](SCHEMA_PLAN.md).
 
-**Redis** holds the volatile layer: current quotes, live prices, WebSocket
-subscription state, response caches, and the Celery broker/result backend.
-Real-time ticks are never written to PostgreSQL row-by-row.
+What this obligates us to:
 
-**Celery** runs the scheduled work: ticker master sync, post-close daily price
-sync, fundamentals sync, corporate-action sync, validation, cleanup.
-`beat_schedule` in `app/config/celery.py` is currently empty and is where
-these get registered.
+- `makemigrations --check --dry-run` must stay empty — it is the drift alarm.
+- When tests return, a `conftest.py` must apply `sql/` to the test database,
+  because Django will create no tables for it.
 
-### Planned apps
+### One door to the provider
 
-```
-market/          Stock, DailyPrice, IntradayBar + serializers/views/urls/services
-data_provider/   Massive client, response→model mapping, rate limiting, retries
-sync/            DataSyncJob model, Celery tasks, orchestration
-fundamentals/    FinancialStatement, FinancialRatio + sync
-realtime/        WebSocket consumer, Redis publish/subscribe
-```
+`data_provider/` is the only code that knows Massive exists. Sync services
+call it; nothing else does. Swapping or adding a provider stays a contained
+change.
 
-`data_provider/` is the only package that knows Massive exists. Everything
-else talks to an interface. That boundary is what makes a provider swap a
-contained change instead of a rewrite — worth holding even while there is
-exactly one provider.
+### Data arrives by scheduled sync, never on request
 
-### First models
+Pages are served from our own database and Redis. A page view never calls
+the provider. Every sync:
 
-`Stock`, `DailyPrice`, `IntradayBar`, `DataSyncJob`. All inherit
-`UnmanagedBaseModel`, all backed by hand-written SQL. Resist adding the other
-fifteen until data is flowing end to end.
+- runs as a Celery task, also runnable by hand as a management command;
+- is logged as a `DataSyncJob` (type, data date, start/end, status, rows,
+  error), so stale data is loud instead of silent;
+- holds a Redis lock so two runs of one job never overlap;
+- upserts — reruns are safe.
 
-`DataSyncJob` records job type, provider, data date, start/end time, status,
-records processed, and error. It is what makes stale data loud instead of
-silent, so it ships with the first sync task, not after.
+### Time
 
-### Initial endpoints
+Django and Celery run in UTC. U.S. trading sessions are derived explicitly in
+America/New_York. Timestamps are stored as `TIMESTAMPTZ`.
 
-```http
-GET /api/stocks/
-GET /api/stocks/{ticker}/
-GET /api/stocks/{ticker}/prices/
-GET /api/stocks/{ticker}/intraday/
-GET /api/stocks/{ticker}/financials/
-GET /api/stocks/{ticker}/corporate-actions/
-GET /api/stocks/{ticker}/dividends/
-GET /api/search/?q=apple
-GET /api/market/movers/
-```
+### Every figure is dated
 
-Existing routes: `GET /api/health/` and the JWT endpoints under
-`/api/v1/auth/`.
+Whatever we serve carries the date it is true as of: the last successful
+reference sync for lists and hubs, a company's own last refresh for its
+profile, the snapshot time for a quote. A number without a date does not
+ship.
+
+### Classification happens once, in the database
+
+Display name, security type, size bucket, sector and exchange name are
+computed in the database (generated columns or written by the sync), not
+re-derived by each consumer. The rules:
+
+| Field | Rule |
+|---|---|
+| Display name | Company name with share-class and legal suffixes removed ("Class A Ordinary Shares", "Inc", "Corp", "Holdings"…); falls back to the raw name |
+| Security type | SPAC if SIC 6770 or "blank check" in its description; ADR if the asset type is an ADR; Common if common stock; otherwise the raw type |
+| Size bucket | Mega ≥ $200B, Large ≥ $10B, Mid ≥ $2B, Small ≥ $300M, Micro ≥ $50M, Nano below |
+| Sector | From the SIC code; "Blank Checks" for SPACs, "Not classified" when missing |
+| Exchange name | From the exchange code (XNAS → Nasdaq, XNYS → NYSE, …) |
+| Indexable | Active, not a SPAC, has a description |
+
+### The backend owns facts, the frontend owns copy
+
+The backend serves facts and classifications. Sentences built from them —
+FAQs, takeaways, structured data — are templated by the frontend. Editorial
+content that cannot be derived (sector primers, glossary) is stored in the
+database and edited through the Django admin.
+
+### Real-time data stays out of PostgreSQL
+
+Quotes live in Redis. PostgreSQL holds the permanent record only.
+
+### Caching follows the data, not the clock
+
+Each successful reference sync bumps a data version in Redis. Cached
+responses are keyed by it, so a sync refreshes every page at once and
+nothing else does.
+
+### Keep data, don't delete it
+
+Delisted companies stay, marked inactive. Financial statements are appended
+per reporting period, never overwritten. History is data.
+
+### Small steps, pipeline first
+
+A table or feature is added when a page needs it, not before. Each phase ends
+with something the frontend can render.
 
 ---
 
-## 6. Build Order
+## 5. Architecture
 
-The definition of done for step 2 is a correct response from
-`GET /api/stocks/AAPL/` backed by our own database. Everything else follows it.
+```
+                 Massive
+                    │
+                    ▼
+          data_provider/ client
+                    │
+                    ▼
+            Celery sync tasks ──────────► Redis
+                    │                quotes, response cache,
+                    ▼                data version, locks
+               PostgreSQL                  ▲
+                    │                      │
+                    └────► Django REST ────┘
+                                │
+                                ▼
+           server-rendered frontend → CDN → search engines
+```
 
-1. **Foundation** — SQL migration workflow, test-DB strategy for unmanaged
-   models, `MASSIVE_API_KEY` wiring, `data_provider/` client with retries and
-   rate limiting, verified Postgres + Redis + Celery.
-2. **Stock master** — `Stock` model and table, import U.S. tickers from
-   `/v3/reference/tickers`, expose `GET /api/stocks/{ticker}/`.
-3. **Historical daily** — `DailyPrice`, backfill via Flat Files, nightly
-   post-close sync via grouped daily bars, `DataSyncJob` tracking.
-4. **Intraday** — `IntradayBar` for 1m/5m/15m/1h, chart endpoint.
-5. **Real-time** — WebSocket worker → Redis → Django Channels → client.
-   Requires adding `channels` + an ASGI server (see §7).
-6. **Fundamentals** — statements, ratios, dividends, splits, corporate actions.
-7. **Market features** — search, movers, market overview, indices.
-8. **User features** — watchlists, favorites, alerts, preferences.
+- **PostgreSQL** — companies, classification, sectors, exchanges, prices,
+  fundamentals, news, editorial content, sync history.
+- **Redis** — delayed quotes, response cache, sync locks, Celery broker.
+- **Celery** — every scheduled sync.
+- **Frontend** — must be server-rendered or statically generated, since
+  search engines and AI answer engines are the primary audience. Lives
+  outside this repo.
+
+### Apps
+
+```
+market/          Stock, Sector, Exchange, DailyPrice, IntradayBar
+data_provider/   provider client
+sync/            DataSyncJob, tasks, orchestration
+content/         sector primers, glossary              (new)
+fundamentals/    statements, dividends, summaries     (later)
+news/            articles                             (later)
+```
 
 ---
 
-## 7. Known Gaps
-
-Small now, expensive later.
+## 6. Known Gaps
 
 | # | Issue | Fix |
 |---|---|---|
-| 1 | ~~`TIME_ZONE` / Celery timezone in Asia/Kolkata.~~ | **Done.** Django and Celery both run in UTC; the sync code derives U.S. session dates in America/New_York. |
-| 2 | `.env.example` documents MySQL on port 3306; `app/config/database.py` uses PostgreSQL on 5432. | Update `.env.example`. |
-| 3 | `PROJECT_NAME` defaults to `shareprice`; `DB_NAME` to `shareprice_db`. Project is ShockPrices. | Rename, or accept it deliberately — it leaks into Celery queue names. |
-| 4 | `massive_api_key` is lowercase and absent from `.env.example`. | `MASSIVE_API_KEY`, documented in `.env.example`. |
-| 5 | No `channels` / `daphne` / `uvicorn` in requirements, though `app/asgi.py` exists. | Add at Phase 5, not before. |
-| 6 | ~~No SQL schema directory.~~ | **Done.** `sql/` + `python manage.py apply_sql`, with checksum enforcement. See [sql/README.md](sql/README.md). |
-| 7 | Unmanaged models leave a test database empty. Tests are out of scope for now, so this is deferred, not solved. | A `conftest.py` running `apply_sql`, reinstated alongside the tests. |
-| 8 | `accounts/migrations/0001_initial.py` predates `User.Meta.managed = False`, so it still emits real DDL — confirmed via `sqlmigrate`. `accounts_user` is Django-owned while every other table is SQL-owned, and `makemigrations --check` is dirty. | Reconcile with the SQL-owned table. See follow-up 1 in [SCHEMA_PLAN.md](SCHEMA_PLAN.md). |
-| 9 | ~~`beat_schedule` is empty.~~ | **Done.** Daily reference-data and post-close daily-price syncs; see README. |
-| 10 | Market-data plan tier and display licensing unconfirmed. | Check the dashboard; confirm real-time vs 15-minute delayed. |
+| 1 | `PROJECT_NAME` / `DB_NAME` code defaults still say `shareprice`; `.env.example` says `shockprices`. | Align the defaults — the name leaks into Celery queue names. |
+| 2 | Unmanaged models leave a test database empty. | `conftest.py` applying `sql/`, when tests return. |
+| 3 | `accounts/migrations/0001_initial.py` predates `managed = False`. | Reconcile with an SQL-owned `accounts_user`. See [SCHEMA_PLAN.md](SCHEMA_PLAN.md). |
+| 4 | CI runs lint only. | Add the drift check and `apply_sql` against a service Postgres. |
+| 5 | Provider plan tier and public display licensing unconfirmed. | Confirm before any price is shown publicly. |
+| 6 | Provider logo URLs need our private key. | Serve them through our backend, or keep monograms. |
+
+---
+
+## 7. Open Questions
+
+Decisions for the product owner; the plan assumes the default.
+
+| Question | Default assumed |
+|---|---|
+| **What is a "sector"?** The prototype uses the 4-digit SIC description (~400 values, many with one company). Thin hub pages hurt SEO. | Keep them, but hubs with fewer than 3 active companies stay out of the index. Revisit a sector → industry grouping once the full universe is loaded. |
+| **Which securities get pages?** | Active common stock and ADRs indexed; SPACs get pages but stay out of the index; ETFs, warrants, rights, units and preferreds excluded. |
+| **Delisted companies?** | Keep the page, show "Inactive", out of the index. |
+| **Frontend stack?** | Server-rendered / statically generated, outside this repo. |
+| **Who writes FAQ and takeaway copy?** | The frontend, from backend fields. |
+| **Delayed or real-time price?** | 15-minute delayed. |
 
 ---
 
 ## 8. Summary
 
-> ShockPrices is a Django/DRF backend that aggregates U.S. equity reference,
-> historical, intraday, fundamental, and corporate-action data from Massive
-> into a PostgreSQL store it owns, serves it as a REST API, and streams live
-> quotes through Redis — with the database schema managed as SQL rather than
-> by Django migrations.
+> ShockPrices turns U.S. equity reference, price and fundamentals data into
+> a dated, classified, SEO-ready dataset that powers an answer-first company
+> profile site — with data arriving by tracked scheduled syncs and the
+> schema managed as SQL.
 
-Two rules worth keeping: the pipeline is proven before the frontend starts,
-and `data_provider/` is the only code that knows the provider's name.
+Rules worth keeping: every figure ships with its date; classification
+happens once, in the database; only `data_provider/` knows the provider's
+name.
