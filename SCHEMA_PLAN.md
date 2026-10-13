@@ -61,10 +61,9 @@ class Meta(UnmanagedBaseModel.Meta):   # not `class Meta:`
 ```
 
 **A test database would be empty.** Django creates no tables for unmanaged
-models, so every ORM test fails on a missing relation unless something applies
-`sql/` to the test database first. Tests are out of scope for now; when they
-return, a `conftest.py` wrapping pytest-django's `django_db_setup` to call
-`apply_sql` is the fix, and it is the first thing to write, not the last.
+models, so every ORM test would fail on a missing relation. `tests/conftest.py`
+extends pytest-django's `django_db_setup` to run `apply_sql` against the test
+database, so it is built exactly like every other environment.
 
 ---
 
@@ -144,7 +143,7 @@ Each row is one `sql/` file plus one model, in the order they unblock each other
 Needs a new `sync` app, and `data_provider/` alongside it (no models — the
 Massive client, retries, rate limiting, and response→model mapping).
 
-**Done when** `GET /api/stocks/AAPL/` returns real data imported from
+**Done when** `GET /api/v1/stocks/AAPL/` returns real data imported from
 `/v3/reference/tickers`.
 
 ### Phase 3–4 — history
@@ -186,13 +185,10 @@ alerts). Both wait for the data layer to be boring first.
 
 ## Immediate follow-ups
 
-1. **`accounts_user` is not under this convention yet.** `accounts/migrations/0001_initial.py`
-   predates `User.Meta.managed = False`, so it still emits real DDL —
-   confirmed with `sqlmigrate`. The table is therefore Django-owned while
-   every other table is SQL-owned. Also, `makemigrations --check` is currently
-   dirty because of the pending `Meta.managed` change on `User`. Both want
-   resolving before the convention has an exception baked into it.
-2. **Timezone.** Gap 1 in the overview. It must be settled before the first
-   `beat_schedule` entry, which is Phase 2.
+1. ~~**`accounts_user` is not under this convention yet.**~~ **Resolved:** the
+   `accounts` app was removed, since the site has no user accounts. Django's
+   own tables (auth for the admin login, sessions, admin log) are the one
+   deliberate exception to SQL ownership and come from `manage.py migrate`.
+2. ~~**Timezone.**~~ **Resolved:** UTC throughout.
 3. **CI gate.** Add `makemigrations --check --dry-run` and `apply_sql` to
    `.github/workflows/ci.yml` so drift and unapplied SQL fail the build.

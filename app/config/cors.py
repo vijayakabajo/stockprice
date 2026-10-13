@@ -6,8 +6,9 @@ ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") i
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True") == "True"
-CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = list(default_headers) + ["Authorization"]
+# The API is read-only and has no auth, so browsers only ever need GET.
+CORS_ALLOW_METHODS = ["GET", "HEAD", "OPTIONS"]
+CORS_ALLOW_HEADERS = list(default_headers)
 
 # CSRF — add your own domains via CSRF_TRUSTED_ORIGINS in .env (comma-separated)
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]

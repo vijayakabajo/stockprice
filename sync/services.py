@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from psycopg2.extras import execute_values
 
+from core.cache import bump_data_version
 from data_provider.massive import MassiveClient
 from market.classification import display_name, sector_name, unique_slug
 from market.models import Exchange, Sector, Stock
@@ -83,6 +84,8 @@ def tracked_job(job_type, data_date=None, lock_timeout=3600):
         try:
             yield job
             job.status = DataSyncJob.Status.SUCCESS
+            # New data: retire every cached API response.
+            bump_data_version()
         except BaseException as e:
             job.status = DataSyncJob.Status.FAILED
             job.error = f"{type(e).__name__}: {e}"

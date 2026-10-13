@@ -99,13 +99,13 @@ need it.
 ```
 stockprices/
 ├── app/                      # Django project; settings split into app/config/*
-├── accounts/                 # custom User (email login), JWT
 ├── core/                     # UnmanagedBaseModel, response envelope,
 │                             # exception handler, pagination, health, apply_sql
 ├── data_provider/            # Massive client, retries + backoff
-├── market/                   # Stock, DailyPrice, IntradayBar
+├── market/                   # Stock, Exchange, Sector, prices; the page API
 ├── sync/                     # DataSyncJob, sync services, Celery tasks, commands
-├── sql/                      # 0000–0005: the schema of record
+├── sql/                      # 0000–0008: the schema of record
+├── tests/                    # pytest; test DB built from sql/
 ├── requirements/  secrets/  Makefile  .github/workflows/ci.yml
 ```
 
@@ -116,17 +116,16 @@ stockprices/
 | Daily prices | Whole market loaded nightly per session; failed recent sessions retried. |
 | Job tracking | Every run logged as a `DataSyncJob`; a Redis lock prevents overlapping runs. |
 | Schedule | Reference data 01:15 UTC daily; daily prices 01:45 UTC Tue–Sat. |
-| Serving layer | A basic stock list and detail. No filtering, classification, aggregates or as-of dates yet. |
+| Classification | Display name, security type, size bucket on every stock; sector and exchange tables with slugs. |
+| Page API | `/api/v1/`: overview, directory, profile, peers, sector and exchange hubs, search, sitemap. Public, dated, cached per data version. |
+| Tests | 52 pytest tests against the prototype's sample stocks. |
 | Schema workflow | `sql/` + `apply_sql`, checksums enforced. |
 
 ### Still to build for the prototype
 
-1. Classification: display name, security type, size bucket, sector, exchange name.
-2. Sector and exchange reference data, with URL slugs.
-3. Directory, hub, profile, search and sitemap data for the pages.
-4. As-of dates on everything served.
-5. A cache that a successful sync invalidates.
-6. Quote, chart, financials, news — the placeholders.
+Quote, chart, financials and news — the placeholders. Everything else the
+prototype shows is served. Coverage is limited by data, not code: on the
+free Massive tier most company profiles have not been fetched yet.
 
 ### Stack
 
@@ -136,7 +135,8 @@ stockprices/
 | Database | PostgreSQL |
 | Cache / broker | Redis |
 | Background jobs | Celery 5.6.2 (worker + beat) |
-| Auth | simplejwt (not used by the site yet) |
+| Auth | None for the site. Django's auth app only backs the admin login |
+| Tests | pytest + pytest-django |
 | Lint / format | ruff, black, pre-commit |
 
 ---
@@ -159,8 +159,10 @@ SQL first, model second. Applied `.sql` files are immutable. Always write
 What this obligates us to:
 
 - `makemigrations --check --dry-run` must stay empty — it is the drift alarm.
-- When tests return, a `conftest.py` must apply `sql/` to the test database,
-  because Django will create no tables for it.
+- Tests build the test database from `sql/` (`tests/conftest.py`), because
+  Django creates no tables for unmanaged models.
+- `makemigrations` ignores field changes on unmanaged models, so a model
+  and its `.sql` file agreeing on columns is checked in code review.
 
 ### One door to the provider
 
@@ -281,11 +283,10 @@ news/            articles                             (later)
 | # | Issue | Fix |
 |---|---|---|
 | 1 | `PROJECT_NAME` / `DB_NAME` code defaults still say `shareprice`; `.env.example` says `shockprices`. | Align the defaults — the name leaks into Celery queue names. |
-| 2 | Unmanaged models leave a test database empty. | `conftest.py` applying `sql/`, when tests return. |
-| 3 | `accounts/migrations/0001_initial.py` predates `managed = False`. | Reconcile with an SQL-owned `accounts_user`. See [SCHEMA_PLAN.md](SCHEMA_PLAN.md). |
-| 4 | CI runs lint only. | Add the drift check and `apply_sql` against a service Postgres. |
-| 5 | Provider plan tier and public display licensing unconfirmed. | Confirm before any price is shown publicly. |
-| 6 | Provider logo URLs need our private key. | Serve them through our backend, or keep monograms. |
+| 2 | CI runs lint only. | Add the drift check and `pytest` against a service Postgres. |
+| 3 | Provider plan tier and public display licensing unconfirmed. | Confirm before any price is shown publicly. |
+| 4 | Provider logo URLs need our private key. | Serve them through our backend, or keep monograms. |
+| 5 | Most company profiles are unfetched on the free tier, so most stocks are "Not classified" with unknown size. | Upgrade the plan, or let the nightly profile job catch up (~900/night). |
 
 ---
 

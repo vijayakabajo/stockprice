@@ -61,9 +61,9 @@ write a new one instead.
 
 ## Tests
 
-There are none right now. When they return, a `conftest.py` must run this
-directory against the test database — unmanaged models otherwise mean a test
-database with no tables at all.
+`tests/conftest.py` runs this directory against the test database before any
+test — unmanaged models otherwise mean a test database with no tables at all.
+A `.sql` file that fails on an empty database fails the whole test run.
 
 ## Conventions inside the SQL
 

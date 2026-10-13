@@ -137,12 +137,11 @@ charts. WebSocket streaming only if the product asks for live ticking prices.
 stockprices/
 ├── app/              settings, urls, celery bootstrap
 ├── core/             base model, response envelope, pagination, apply_sql
-├── accounts/         User + JWT (unused by the site for now)
 ├── data_provider/    Massive client — the only code that knows Massive
 ├── market/           Stock, Sector, Exchange, DailyPrice, IntradayBar
 │                     serializers, views, filters, aggregate queries
 ├── sync/             DataSyncJob, sync services, tasks, commands
-├── content/          SectorPrimer / GlossaryTerm editorial content   (new)
+├── content/          glossary and other editorial content          (later)
 ├── fundamentals/     statements, dividends, summary metrics          (later)
 └── news/             articles                                       (later)
 ```
@@ -158,7 +157,7 @@ One `sql/` file plus one model each, per the SCHEMA_PLAN workflow.
 | 0006 | `market_exchange` — MIC (PK), slug, display name, acronym, operating MIC | 2 |
 | 0007 | `market_sector` — SIC code (PK), slug, display name, raw SIC description | 2 |
 | 0008 | `market_stock` + `display_name` column, generated `security_type` and `size_bucket`, indexes on `sic_code`, `security_type`, `size_bucket`, `(active, market_cap DESC)` | 2 |
-| 0009 | `content_glossary_term`, sector primer column or table | 2 |
+| 00NN | `content_glossary_term` (sector primers live on `market_sector`) | later |
 | 0010 | `market_stock.market_cap_as_of` — date the market cap refers to | 3 |
 | 00NN | `fundamentals_financial_statement`, `market_dividend`, `market_stock_split` | 4 |
 | 00NN | `news_article` + `news_article_ticker` | 5 |
@@ -168,8 +167,7 @@ One `sql/` file plus one model each, per the SCHEMA_PLAN workflow.
 ## 7. API
 
 All endpoints are public, read-only, under `/api/v1/`, and return the
-existing `api_response()` envelope. The current `/api/stocks/` routes move
-under `/api/v1/` to match auth.
+existing `api_response()` envelope. There is no user auth.
 
 ### Conventions
 
@@ -199,7 +197,6 @@ under `/api/v1/` to match auth.
 | `GET /api/v1/exchanges/{slug}/` | Exchange hub | stats; companies via `/stocks/?exchange=` |
 | `GET /api/v1/search/?q=` | Search box | ticker prefix first, then name trigram; small typeahead payload |
 | `GET /api/v1/sitemap/` | Sitemap build | every indexable stock, sector and exchange with `lastmod` |
-| `GET /api/v1/glossary/` | Profile glossary | editorial terms |
 
 Later:
 
@@ -209,9 +206,10 @@ Later:
 | `GET /api/v1/stocks/{ticker}/prices/?range=1y` | Price chart | from `market_daily_price` |
 | `GET /api/v1/stocks/{ticker}/financials/` | Financials block | revenue TTM, net income TTM, EPS, P/E, dividend yield, each dated |
 | `GET /api/v1/stocks/{ticker}/news/` | Latest news | |
+| `GET /api/v1/glossary/` | Profile glossary | editorial terms; the frontend holds them until then |
 
-Existing routes: `GET /api/health/` and the JWT endpoints under
-`/api/v1/auth/`.
+Also: `GET /api/health/`. The boilerplate JWT endpoints and `accounts` app
+were removed in Phase 2; the site has no user accounts.
 
 ------------------------------------------------------------------------
 
@@ -230,9 +228,9 @@ Django, PostgreSQL, Redis, Celery, Massive client, `sql/` + `apply_sql`,
 grouped daily bars ──► market_daily_price       (sync_daily_prices)
 ```
 
-Scheduled daily. Basic `GET /api/stocks/` and `/api/stocks/{ticker}/` exist.
+Scheduled daily.
 
-### Phase 2 --- Profile Site API *(next)*
+### Phase 2 --- Profile Site API ✅
 
 The prototype rendered from the API, for the full U.S. universe.
 
@@ -250,7 +248,8 @@ The prototype rendered from the API, for the full U.S. universe.
 8.  Peers / market cap context / related companies.
 9.  Search: ticker prefix, then `pg_trgm` name match.
 10. Sitemap endpoint with `lastmod`.
-11. `content` app: sector primers and glossary, admin-editable.
+11. Sector primers, admin-editable on `market_sector`. (Glossary deferred:
+    the frontend holds its terms for now.)
 12. Response cache keyed by a data version that each successful reference
     sync bumps; `Cache-Control` and `ETag` headers.
 13. Settle universe rules: which asset types get pages, what is
@@ -313,7 +312,8 @@ an ASGI server.
 
 ### Phase 8 --- User Features *(not in the prototype)*
 
-Watchlists, favourites, alerts, preferences. `accounts` already exists.
+Watchlists, favourites, alerts, preferences. Would need user accounts
+again; the unused boilerplate `accounts` app was removed in Phase 2.
 
 ------------------------------------------------------------------------
 
@@ -323,13 +323,12 @@ Not a phase --- done alongside Phase 2 and kept up.
 
 -   **CI:** `makemigrations --check --dry-run` and `apply_sql` against a
     service Postgres, alongside lint.
--   **Tests:** reinstate pytest with a `conftest.py` that applies `sql/`
-    to the test database; start with serializers and aggregate queries.
+-   **Tests:** ✅ pytest, with the test database built from `sql/`. Keep
+    one test per endpoint and per naming rule.
 -   **Staleness alarms:** a stale reference or price sync (no successful
     `DataSyncJob` within its window) should be visible --- in the
     health check and in `as_of` on every response.
--   **Config clean-up:** `PROJECT_NAME` / `DB_NAME` defaults, the
-    `accounts` migration.
+-   **Config clean-up:** `PROJECT_NAME` / `DB_NAME` defaults.
 
 ------------------------------------------------------------------------
 

@@ -15,7 +15,9 @@ than by Django migrations.
 - PostgreSQL
 - Redis — cache backend and Celery broker/result backend
 - Celery — background sync tasks (worker + beat)
-- JWT auth (`djangorestframework_simplejwt`)
+- No user accounts: the API is public and read-only. Django's auth app only
+  backs the admin login.
+- `pytest` + `pytest-django` for tests
 - `ruff` + `black` for lint/format
 
 ## The one thing to know first
@@ -34,8 +36,11 @@ app/            Django project config (settings, urls, wsgi/asgi, celery bootstr
 core/           Cross-cutting concerns: UnmanagedBaseModel, the api_response()
                 envelope, the DRF exception handler, pagination, health check,
                 and the apply_sql management command.
-accounts/       Custom User model (email login) + register/login/refresh/me.
-market/         Stock, DailyPrice, IntradayBar — the market data models.
+market/         Stock, Exchange, Sector, DailyPrice, IntradayBar, and the page API
+                (/api/v1/...).
+sync/           Sync jobs: services, Celery tasks, management commands, DataSyncJob.
+data_provider/  The Massive client — the only code that knows the provider.
+tests/          pytest suite; builds the test database from sql/.
 sql/            The schema of record. One file per change, applied in order.
 requirements/   base.txt / dev.txt / prod.txt
 secrets/        Per-environment secret files loaded on top of .env. Only
@@ -51,8 +56,9 @@ python -m venv .venv
 source .venv/bin/activate            # .venv\Scripts\activate on Windows
 pip install -r requirements/dev.txt
 cp .env.example .env                 # fill in DB_*/REDIS_*/MASSIVE_API_KEY
-python manage.py migrate             # third-party tables (auth, sessions, admin)
+python manage.py migrate             # Django's own tables (admin, auth, sessions)
 python manage.py apply_sql           # our schema — this is the one that matters
+python manage.py createsuperuser     # admin login, for editing sector/exchange labels
 python manage.py runserver
 ```
 
@@ -129,8 +135,33 @@ Every endpoint returns the same envelope via `core.response.api_response()`:
 `core.exceptions.custom_exception_handler` reshapes every DRF exception into the
 same envelope globally, so views don't have to remember to.
 
-Auth: get tokens from `POST /api/v1/auth/login/` or `/register/`, then send
-`Authorization: Bearer <access>`. Refresh at `POST /api/v1/auth/refresh/`.
+The API is public and read-only (GET only, no login). Endpoints, all under
+`/api/v1/`:
+
+| Endpoint | Serves |
+|---|---|
+| `overview/` | Home: headline stats, counts by sector/exchange/size, largest companies |
+| `stocks/?exchange=&type=&sector=&size=&q=&ordering=&page=&page_size=` | Directory and hub company tables |
+| `stocks/{ticker}/` | Stock profile (case-insensitive; dotted tickers like `BRK.A` work) |
+| `stocks/{ticker}/peers/` | Market cap rank and context, peers, related companies |
+| `sectors/`, `sectors/{slug}/` | Sector index and hub (`not-classified` included) |
+| `exchanges/`, `exchanges/{slug}/` | Exchange index and hub |
+| `search/?q=` | Typeahead: exact ticker, ticker prefix, then fuzzy name |
+| `sitemap/` | Every indexable stock, sector and exchange with `lastmod` |
+
+Rules every endpoint follows:
+
+- Only active common stock, ADRs and SPACs have pages (`market/universe.py`);
+  anything else is a 404. Every row carries `indexable`: SPACs, inactive
+  stocks, stocks without a description and hubs with fewer than 3 companies
+  are `false`.
+- Lists and hubs carry `as_of`, the last successful ticker or profile sync; a
+  profile carries its own last fetch.
+- Missing values are `null`, never `""`. Market cap, shares and employees are
+  JSON numbers. Unknown filter values are a 400 listing the valid ones.
+- Responses are cached in Redis per **data version**, which every successful
+  sync bumps (`core/cache.py`), and carry `ETag` and
+  `Cache-Control: public, max-age=300`. A matching `If-None-Match` gets a 304.
 
 ## Adding a new app
 
@@ -159,12 +190,16 @@ pre-commit install
 
 ## Tests
 
-There are none right now — deliberately out of scope. Bringing them back means
-reinstating pytest in `requirements/dev.txt`, a `[tool.pytest.ini_options]`
-block in `pyproject.toml`, and a `conftest.py` that runs `apply_sql` against the
-test database. That last part is not optional: unmanaged models mean Django
-creates no tables for the test database, so without it every ORM test fails on
-a missing relation.
+```bash
+pytest
+```
+
+Needs a reachable PostgreSQL (pytest-django creates `test_<DB_NAME>`); Redis is
+not needed, tests use an in-memory cache. Unmanaged models mean Django creates
+no tables for the test database, so `tests/conftest.py` runs `apply_sql`
+against it first. API tests run against the prototype's 13 sample stocks
+(`tests/fixtures/prototype_stocks.json`), so expected values are the ones the
+prototype pages show.
 
 ## CI
 

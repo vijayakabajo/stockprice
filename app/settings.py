@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -51,6 +50,8 @@ from app.config.cors import (
 # Installed Apps
 # ------------------------------------------------------------------------------
 
+# django.contrib.auth stays for the admin login only. The public site and API
+# have no user accounts.
 DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -58,24 +59,21 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",  # trigram search lookups
 ]
 
 THIRD_PARTY_APPS = [
     "corsheaders",
     "rest_framework",
-    "rest_framework_simplejwt",
 ]
 
 LOCAL_APPS = [
     "core",
-    "accounts",
     "market",
     "sync",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
-
-AUTH_USER_MODEL = "accounts.User"
 
 # ------------------------------------------------------------------------------
 # Caching (Redis)
@@ -85,17 +83,11 @@ from app.config.redis import get_cache_config
 CACHES = get_cache_config(ENV_TYPE)
 
 # ------------------------------------------------------------------------------
-# REST Framework / JWT
+# REST Framework
 # ------------------------------------------------------------------------------
 from app.config.rest_framework import get_rest_framework_config
 
 REST_FRAMEWORK = get_rest_framework_config()
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-}
 
 # ------------------------------------------------------------------------------
 # URL & WSGI

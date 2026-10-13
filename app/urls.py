@@ -7,6 +7,5 @@ urlpatterns = [
     path("", service_landing, name="service-landing"),
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
-    path("api/v1/auth/", include("accounts.urls")),
-    path("api/", include("market.urls")),
+    path("api/v1/", include("market.urls")),
 ]
