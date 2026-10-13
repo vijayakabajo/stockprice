@@ -1,0 +1,917 @@
+{
+  "info": {
+    "_postman_id": "bf7a7987-a3db-5528-844a-3ad677a14e3d",
+    "name": "StockPrices API",
+    "description": "The read-only page API behind the Equity Profiles site. No auth.\n\nSelect the **StockPrices \u2014 local** environment, or edit the `host` variable. Every request has tests: use **Run collection** to check them all at once.\n\nFull reference: API.md in the repo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "c5f1c59c-4808-5307-ae0b-cdb0ea8ea150",
+      "name": "Pages",
+      "description": "One request per page or page block. Change the collection variables `ticker`, `sector` and `exchange` to try other companies.",
+      "item": [
+        {
+          "id": "ba521bcf-49f3-5012-af67-52c0ce3d4740",
+          "name": "Overview (home)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"headline stats\", () => pm.expect(data).to.include.keys(\"companies\",\"total_market_cap\",\"sectors_covered\",\"by_sector\",\"by_exchange\",\"by_size\",\"largest\",\"as_of\"));",
+                  "pm.test(\"largest has 6 or fewer\", () => pm.expect(data.largest.length).to.be.at.most(6));",
+                  "pm.test(\"Not classified sorts last\", () => {",
+                  "  const slugs = data.by_sector.map(s => s.slug);",
+                  "  const i = slugs.indexOf(\"not-classified\");",
+                  "  pm.expect(i === -1 || i === slugs.length - 1).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/overview/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "overview",
+                ""
+              ]
+            },
+            "description": "Headline stats, counts by sector / exchange / size, and the 6 largest companies."
+          },
+          "response": []
+        },
+        {
+          "id": "c692ff21-6e27-53e0-b3b5-bef53da7bb9e",
+          "name": "Stock directory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "const rowFields = [\"ticker\",\"display_name\",\"name\",\"security_type\",\"exchange\",\"sector\",\"hq\",\"total_employees\",\"market_cap\",\"size_bucket\",\"indexable\"];",
+                  "pm.test(\"pagination fields\", () => pm.expect(data).to.include.keys(\"count\",\"page\",\"page_size\",\"num_pages\",\"results\",\"as_of\"));",
+                  "pm.test(\"rows have the stock-row fields\", () => data.results.forEach(r => pm.expect(r).to.include.keys(rowFields)));",
+                  "pm.test(\"page_size respected\", () => pm.expect(data.results.length).to.be.at.most(data.page_size));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/?ordering=-market_cap&page=1&page_size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "exchange",
+                  "value": "{{exchange}}",
+                  "description": "Exchange slug: nasdaq, nyse, nyse-american, ...",
+                  "disabled": true
+                },
+                {
+                  "key": "sector",
+                  "value": "{{sector}}",
+                  "description": "Sector slug, or not-classified",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "spac",
+                  "description": "common | adr | spac",
+                  "disabled": true
+                },
+                {
+                  "key": "size",
+                  "value": "mega",
+                  "description": "mega | large | mid | small | micro | nano | unknown",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "acquisition",
+                  "description": "Ticker prefix or name text",
+                  "disabled": true
+                },
+                {
+                  "key": "ordering",
+                  "value": "-market_cap",
+                  "description": "-market_cap (default) | name | ticker | -employees"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "1, 2, ..."
+                },
+                {
+                  "key": "page_size",
+                  "value": "10",
+                  "description": "1-100, default 50"
+                }
+              ]
+            },
+            "description": "The directory. Tick the query parameters to filter; all filters combine with AND. Unknown values return 400 listing the valid ones."
+          },
+          "response": []
+        },
+        {
+          "id": "a36b7aa7-4885-5d6c-9458-1ea03ab3871a",
+          "name": "Stock profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"ticker matches\", () => pm.expect(data.ticker).to.eql(pm.collectionVariables.get(\"ticker\").toUpperCase()));",
+                  "pm.test(\"profile fields\", () => pm.expect(data).to.include.keys(\"description\",\"website\",\"address\",\"cik\",\"shares_outstanding\",\"edgar_url\",\"active\",\"as_of\",\"indexable\"));",
+                  "pm.test(\"labels are {slug, name}\", () => pm.expect(data.sector).to.have.keys(\"slug\",\"name\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/{{ticker}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "{{ticker}}",
+                ""
+              ]
+            },
+            "description": "The profile page. Case-insensitive; dotted tickers such as BRK.A work."
+          },
+          "response": []
+        },
+        {
+          "id": "5e80ad44-f884-51a9-90d3-d343163033bf",
+          "name": "Stock peers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"blocks present\", () => pm.expect(data).to.include.keys(\"rank\",\"ranked_total\",\"context\",\"peers\",\"related\",\"as_of\"));",
+                  "pm.test(\"context includes this stock\", () => pm.expect(data.context.map(r => r.ticker)).to.include(data.ticker));",
+                  "pm.test(\"related excludes this stock\", () => pm.expect(data.related.map(r => r.ticker)).to.not.include(data.ticker));",
+                  "pm.test(\"at most 3 related\", () => pm.expect(data.related.length).to.be.at.most(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/{{ticker}}/peers/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "{{ticker}}",
+                "peers",
+                ""
+              ]
+            },
+            "description": "Market cap rank and context bars, peers (empty for SPACs) and 3 related companies."
+          },
+          "response": []
+        },
+        {
+          "id": "6dfdfd41-735c-55ee-8260-9ae1270f48d7",
+          "name": "Sector index",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"results\", () => pm.expect(data.results).to.be.an(\"array\").that.is.not.empty);",
+                  "pm.test(\"entry shape\", () => pm.expect(data.results[0]).to.have.keys(\"slug\",\"name\",\"companies\",\"total_market_cap\",\"indexable\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sectors/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sectors",
+                ""
+              ]
+            },
+            "description": "Every sector with companies, by company count; Not classified last."
+          },
+          "response": []
+        },
+        {
+          "id": "ab34f20d-5ea6-515c-b8b4-922c470a2f61",
+          "name": "Sector hub",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"slug matches\", () => pm.expect(data.slug).to.eql(pm.collectionVariables.get(\"sector\")));",
+                  "pm.test(\"hub fields\", () => pm.expect(data).to.include.keys(\"name\",\"sic_code\",\"primer\",\"companies\",\"total_market_cap\",\"average_market_cap\",\"total_employees\",\"largest\",\"indexable\",\"as_of\"));",
+                  "pm.test(\"at most 10 largest\", () => pm.expect(data.largest.length).to.be.at.most(10));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sectors/{{sector}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sectors",
+                "{{sector}}",
+                ""
+              ]
+            },
+            "description": "Sector stats, primer and 10 largest companies. For the full table call the directory with ?sector=."
+          },
+          "response": []
+        },
+        {
+          "id": "07e8a89a-8c88-5e6a-9f60-fe23f3ab9fb5",
+          "name": "Sector companies (hub table)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"all rows in the sector\", () => data.results.forEach(r => pm.expect(r.sector.slug).to.eql(pm.collectionVariables.get(\"sector\"))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/?sector={{sector}}&page_size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "sector",
+                  "value": "{{sector}}",
+                  "description": "Sector slug"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "The company table on a sector hub: the directory filtered by sector."
+          },
+          "response": []
+        },
+        {
+          "id": "53381dc9-ea93-58ca-8f0a-5093d89bb394",
+          "name": "Exchange index",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"results\", () => pm.expect(data.results).to.be.an(\"array\").that.is.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/exchanges/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchanges",
+                ""
+              ]
+            },
+            "description": "Every exchange with companies, by company count."
+          },
+          "response": []
+        },
+        {
+          "id": "fdde7012-5a16-533b-a6d0-1b67f0bd066b",
+          "name": "Exchange hub",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"slug matches\", () => pm.expect(data.slug).to.eql(pm.collectionVariables.get(\"exchange\")));",
+                  "pm.test(\"hub fields\", () => pm.expect(data).to.include.keys(\"mic\",\"companies\",\"total_market_cap\",\"largest\",\"indexable\",\"as_of\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/exchanges/{{exchange}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "exchanges",
+                "{{exchange}}",
+                ""
+              ]
+            },
+            "description": "Exchange stats and 10 largest companies. For the full table call the directory with ?exchange=."
+          },
+          "response": []
+        },
+        {
+          "id": "256c5a07-f4c7-5b0b-bdc4-835269ea2bee",
+          "name": "Search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"echoes the query\", () => pm.expect(data.query).to.eql(\"appl\"));",
+                  "pm.test(\"at most 10 results\", () => pm.expect(data.results.length).to.be.at.most(10));",
+                  "pm.test(\"result shape\", () => data.results.forEach(r => pm.expect(r).to.have.keys(\"ticker\",\"display_name\",\"security_type\",\"exchange\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/search/?q=appl",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "appl",
+                  "description": "Ticker or company name"
+                }
+              ]
+            },
+            "description": "Typeahead: exact ticker, ticker prefix, names starting with the text, then fuzzy name matches. Up to 10."
+          },
+          "response": []
+        },
+        {
+          "id": "a995eaf9-9934-5386-adab-e0f51a4fbc05",
+          "name": "Sitemap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"success envelope\", () => pm.expect(body.success).to.eql(true));",
+                  "const data = body.data;",
+                  "pm.test(\"three lists\", () => pm.expect(data).to.have.keys(\"stocks\",\"sectors\",\"exchanges\"));",
+                  "pm.test(\"stock entry shape\", () => data.stocks.slice(0, 20).forEach(s => pm.expect(s).to.have.keys(\"ticker\",\"lastmod\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sitemap/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sitemap",
+                ""
+              ]
+            },
+            "description": "Every indexable stock, sector and exchange with a last-modified date."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "e0aad0d4-f660-5d4c-b446-f87052d79f05",
+      "name": "Errors",
+      "description": "Requests that must fail, and how.",
+      "item": [
+        {
+          "id": "ec8a004d-f911-5065-906c-855cfa0152eb",
+          "name": "ETF has no page (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });",
+                  "pm.test(\"message names the ticker\", () => pm.expect(body.message).to.include(\"SPY\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/SPY/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "SPY",
+                ""
+              ]
+            },
+            "description": "ETFs, warrants, units, preferreds, rights and funds have no page."
+          },
+          "response": []
+        },
+        {
+          "id": "656e8574-b98f-5d56-a31f-34eb0f6d42d9",
+          "name": "Unknown ticker (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/NOTAREALTICKER/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "NOTAREALTICKER",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "ad1067d7-0510-57a5-a1f5-ae9526ab0592",
+          "name": "Unknown filter value (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });",
+                  "pm.test(\"errors name the bad fields\", () => pm.expect(body.errors).to.include.keys(\"size\",\"sector\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/?size=huge&sector=nope",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "huge",
+                  "description": ""
+                },
+                {
+                  "key": "sector",
+                  "value": "nope",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "Unknown filter values return 400 with the valid options, instead of an empty page."
+          },
+          "response": []
+        },
+        {
+          "id": "f95f0bc5-e366-5e54-a661-df627a5eb653",
+          "name": "Page out of range (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/?page=99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "99999",
+                  "description": ""
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "5687db35-70c3-5c5b-a54c-6236a5760798",
+          "name": "Search without q (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400\", () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });",
+                  "pm.test(\"q is required\", () => pm.expect(body.errors).to.have.key(\"q\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/search/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "search",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "4d76549c-96ae-5c52-b98d-af6576fa9645",
+          "name": "Unknown sector (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"error envelope\", () => { pm.expect(body.success).to.eql(false); pm.expect(body.data).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sectors/not-a-sector/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sectors",
+                "not-a-sector",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "207c3568-31ed-5dd6-820f-aaeaa8975e35",
+          "name": "Write methods are refused (405)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                ""
+              ]
+            },
+            "description": "The API is read-only."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "76c4b625-3004-5752-b2b7-8b63e1523932",
+      "name": "Caching",
+      "description": "Run these two in order (or run the folder). The first saves the ETag, the second sends it back and should get 304 Not Modified with an empty body.",
+      "item": [
+        {
+          "id": "dfde26dc-a22f-5dc8-9093-e68d376c0e49",
+          "name": "1. Get profile and save ETag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has ETag\", () => pm.response.to.have.header(\"ETag\"));",
+                  "pm.test(\"cacheable for 5 minutes\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"public, max-age=300\"));",
+                  "pm.collectionVariables.set(\"etag\", pm.response.headers.get(\"ETag\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/{{ticker}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "{{ticker}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "id": "7c1a1142-2c69-54be-9f6c-5b899b8430d0",
+          "name": "2. Same request with If-None-Match (304)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"304 Not Modified\", () => pm.response.to.have.status(304));",
+                  "pm.test(\"empty body\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "If-None-Match",
+                "value": "{{etag}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stocks/{{ticker}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stocks",
+                "{{ticker}}",
+                ""
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "id": "85bb63f6-7572-5a92-afe9-f0f60ea8aa06",
+      "name": "Health check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+              "pm.test(\"healthy\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{host}}/api/health/",
+          "host": [
+            "{{host}}"
+          ],
+          "path": [
+            "api",
+            "health",
+            ""
+          ]
+        },
+        "description": "Database and Redis reachability. Lives at /api/health/, outside /api/v1/."
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every response with a body is JSON in the standard envelope.",
+          "if (pm.response.code !== 304 && pm.response.code !== 405) {",
+          "  pm.test(\"JSON envelope\", () => {",
+          "    const body = pm.response.json();",
+          "    if (body.status === undefined) pm.expect(body).to.include.keys(\"success\",\"message\",\"data\");",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "host",
+      "value": "http://localhost:8000",
+      "description": "Server root; overridden by the environment"
+    },
+    {
+      "key": "baseUrl",
+      "value": "{{host}}/api/v1",
+      "description": "API root"
+    },
+    {
+      "key": "ticker",
+      "value": "AAPL",
+      "description": "Any ticker with a page: AAPL, A, AACP (SPAC), BRK.A"
+    },
+    {
+      "key": "sector",
+      "value": "blank-checks",
+      "description": "Any slug from Sector index"
+    },
+    {
+      "key": "exchange",
+      "value": "nasdaq",
+      "description": "Any slug from Exchange index"
+    },
+    {
+      "key": "etag",
+      "value": "",
+      "description": "Set by Caching / 1"
+    }
+  ]
+}

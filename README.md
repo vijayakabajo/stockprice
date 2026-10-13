@@ -8,6 +8,7 @@ than by Django migrations.
 - [SCHEMA_PLAN.md](SCHEMA_PLAN.md) — how models and tables get built, and what's next
 - [sql/README.md](sql/README.md) — the rules the `.sql` files follow
 - [stockprices_planning.md](stockprices_planning.md) — feature roadmap
+- [API.md](API.md) — API reference with curl examples; Postman collection in [postman/](postman/)
 
 ## Stack
 
@@ -162,6 +163,12 @@ Rules every endpoint follows:
 - Responses are cached in Redis per **data version**, which every successful
   sync bumps (`core/cache.py`), and carry `ETag` and
   `Cache-Control: public, max-age=300`. A matching `If-None-Match` gets a 304.
+  After deploying code that changes a response, run
+  `python manage.py clear_api_cache`.
+
+Full reference with curl examples: [API.md](API.md). For manual testing,
+import `postman/StockPrices.postman_collection.json` and
+`postman/StockPrices.local.postman_environment.json` into Postman.
 
 ## Adding a new app
 
