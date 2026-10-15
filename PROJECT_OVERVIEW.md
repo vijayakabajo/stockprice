@@ -85,7 +85,7 @@ as labelled placeholders.
 - Fundamentals summary and news
 - Later, only if the product asks: market movers, intraday charts, live prices
 
-**Out of scope:** the frontend itself, user accounts and watchlists (nothing
+**Out of scope:** user accounts and watchlists (nothing
 in the prototype needs them), options, crypto, forex, futures.
 
 ---
@@ -261,9 +261,9 @@ with something the frontend can render.
   fundamentals, news, editorial content, sync history.
 - **Redis** — delayed quotes, response cache, sync locks, Celery broker.
 - **Celery** — every scheduled sync.
-- **Frontend** — must be server-rendered or statically generated, since
-  search engines and AI answer engines are the primary audience. Lives
-  outside this repo.
+- **Frontend** — server-rendered Django templates (`web/`), since search
+  engines and AI answer engines are the primary audience. Built from the
+  same payloads as the API; see [FRONTEND.md](FRONTEND.md).
 
 ### Apps
 
@@ -299,7 +299,7 @@ Decisions for the product owner; the plan assumes the default.
 | **What is a "sector"?** The prototype uses the 4-digit SIC description (~400 values, many with one company). Thin hub pages hurt SEO. | Keep them, but hubs with fewer than 3 active companies stay out of the index. Revisit a sector → industry grouping once the full universe is loaded. |
 | **Which securities get pages?** | Active common stock and ADRs indexed; SPACs get pages but stay out of the index; ETFs, warrants, rights, units and preferreds excluded. |
 | **Delisted companies?** | Keep the page, show "Inactive", out of the index. |
-| **Frontend stack?** | Server-rendered / statically generated, outside this repo. |
+| **Frontend stack?** | Server-rendered Django templates in this repo (`web/`); see FRONTEND.md. |
 | **Who writes FAQ and takeaway copy?** | The frontend, from backend fields. |
 | **Delayed or real-time price?** | 15-minute delayed. |
 

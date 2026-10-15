@@ -34,3 +34,6 @@ logs/*
 
 # Celery beat schedule state
 celerybeat-schedule*
+
+# Node: dev-only asset toolchain (built output in web/static/ is committed)
+node_modules/

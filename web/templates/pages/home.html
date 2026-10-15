@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap hero" aria-labelledby="hero-h">
+  <p class="eyebrow">U.S. listed companies</p>
+  <h1 id="hero-h">Research U.S. stocks, answer first.</h1>
+  <p class="hero__lead">Clean, dated profiles of {{ overview.companies|num }} U.S.-listed companies: market cap, sector, exchange, headcount, identifiers and SEC filings. Plain answers, honest sourcing, no clutter.</p>
+  <form class="hero__search" action="{% url 'web:search' %}" method="get" role="search" data-search>
+    <label class="visually-hidden" for="home-q">Search by ticker or company name</label>
+    <input id="home-q" name="q" type="search" placeholder="Try a ticker, like AAL or Agilent" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <p class="hero__more"><span class="muted">Or jump in:</span> <a href="{% url 'web:directory' %}">Browse the directory →</a> <a href="{% url 'web:guides' %}">Read the guides →</a></p>
+</section>
+
+<section class="wrap" aria-label="Coverage">
+  <dl class="statstrip">
+    <div><dt>Companies covered</dt><dd class="num">{{ overview.companies|num }}</dd></div>
+    <div><dt>Combined market cap</dt><dd class="num">{{ overview.total_market_cap|cap }}</dd></div>
+    <div><dt>Sectors covered</dt><dd class="num">{{ overview.sectors_covered|num }}</dd></div>
+    <div><dt>Reference data as of</dt><dd class="statstrip__date"><time datetime="{{ overview.as_of|isodate }}">{{ overview.as_of|asof }}</time></dd></div>
+  </dl>
+</section>
+
+<section class="wrap section" aria-labelledby="browse-h">
+  <h2 id="browse-h" class="visually-hidden">Browse U.S. stocks</h2>
+  <div class="browse">
+    <section class="card browse__card" aria-labelledby="by-sector-h">
+      <h3 id="by-sector-h">Largest sectors</h3>
+      <ul class="link-list">{% for s in overview.by_sector %}{% if s.slug != "not-classified" %}
+        <li><a href="{% url 'web:sector' slug=s.slug %}">{{ s.name }}</a><span class="num muted">{{ s.companies|num }}</span></li>{% endif %}{% endfor %}
+      </ul>
+      <a class="card__more" href="{% url 'web:sectors' %}">All sectors →</a>
+    </section>
+    <section class="card browse__card" aria-labelledby="by-exchange-h">
+      <h3 id="by-exchange-h">By exchange</h3>
+      <ul class="link-list">{% for e in overview.by_exchange|slice:":8" %}
+        <li><a href="{% url 'web:exchange' slug=e.slug %}">{{ e.name }}</a><span class="num muted">{{ e.companies|num }}</span></li>{% endfor %}
+      </ul>
+      <a class="card__more" href="{% url 'web:exchanges' %}">All exchanges →</a>
+    </section>
+    <section class="card browse__card" aria-labelledby="by-size-h">
+      <h3 id="by-size-h">By market cap</h3>
+      <ul class="link-list">{% for b in overview.by_size %}{% if b.slug != "unknown" %}
+        <li><a href="{% url 'web:directory' %}?size={{ b.slug }}">{{ b.name }}</a><span class="num muted">{{ b.companies|num }}</span></li>{% endif %}{% endfor %}
+      </ul>
+      <a class="card__more" href="{% url 'web:guide' slug='what-is-market-cap' %}">How size classes work →</a>
+    </section>
+  </div>
+</section>
+
+<section class="wrap section" aria-labelledby="largest-h">
+  <div class="section-head">
+    <h2 id="largest-h">Which are the largest U.S. companies by market cap?</h2>
+    <a class="asof" href="{% url 'web:directory' %}">View all →</a>
+  </div>
+  <p class="lead-answer">The largest U.S.-listed company we track is {{ overview.largest.0.display_name|default:overview.largest.0.name }} ({{ overview.largest.0.ticker }}), with a market cap of about {{ overview.largest.0.market_cap|cap }} as of {{ overview.as_of|asof }}.</p>
+  {% include "partials/stock_table.html" with rows=overview.largest max_cap=max_cap caption="Largest U.S.-listed companies by market cap" hide_hq=True hide_type=True %}
+</section>
+
+<section class="wrap section" aria-labelledby="why-h">
+  <p class="eyebrow">Why this is different</p>
+  <h2 id="why-h">Built to answer, not just quote.</h2>
+  <ul class="features">
+    <li class="card"><span class="icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.3L21 9l-5 4.3L17.5 21 12 17l-5.5 4L8 13.3 3 9l6.6-.7z"/></svg></span><h3>Answer first</h3><p>Every section opens with a one-sentence answer, then the detail behind it.</p></li>
+    <li class="card"><span class="icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 12l7-7 7 7"/></svg></span><h3>Dated and sourced</h3><p>Every figure shows the date it is true as of, and links to the filing it comes from.</p></li>
+    <li class="card"><span class="icon" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4zM8 20h8M12 16v4"/></svg></span><h3>Readable anywhere</h3><p>Fast, plain pages that work on any phone, with or without JavaScript.</p></li>
+  </ul>
+</section>
+
+<section class="wrap section" aria-labelledby="guides-h">
+  <div class="section-head"><h2 id="guides-h">Guides</h2><a class="asof" href="{% url 'web:guides' %}">All guides →</a></div>
+  <ul class="cards-3">{% for g in guides %}
+    <li class="card guide-card"><h3><a href="{% url 'web:guide' slug=g.slug %}">{{ g.title }}</a></h3><p>{{ g.summary }}</p></li>{% endfor %}
+  </ul>
+</section>
+
+<div class="wrap section narrow">
+  {% include "components/faq.html" with faqs=faqs heading="Common questions" %}
+</div>
+{% endblock %}

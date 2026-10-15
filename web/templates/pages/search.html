@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top narrow" aria-labelledby="search-h">
+  <h1 id="search-h">{% if query %}Search results for “{{ query }}”{% else %}Search U.S. stocks{% endif %}</h1>
+  <form class="hero__search" action="{% url 'web:search' %}" method="get" role="search" data-search>
+    <label class="visually-hidden" for="search-q">Search by ticker or company name</label>
+    <input id="search-q" name="q" type="search" value="{{ query }}" placeholder="Ticker or company name" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <button class="btn" type="submit">Search</button>
+  </form>
+  {% if query %}
+    {% if results %}
+    <p class="count" role="status">{{ results|length }} best match{{ results|length|pluralize:"es" }}.</p>
+    <ul class="result-list">{% for r in results %}
+      <li><a class="card result" href="{{ r.ticker|stock_url }}">{% monogram r.ticker %}<span><span class="tkr">{{ r.ticker }}</span> <span class="result__name">{{ r.display_name }}</span><span class="muted"> · {{ r.security_type|type_label }}{% if r.exchange %} · {{ r.exchange.name }}{% endif %}</span></span></a></li>{% endfor %}
+    </ul>
+    {% else %}
+    <p role="status">No U.S.-listed company matches “{{ query }}”. Try a ticker symbol, or <a href="{% url 'web:directory' %}">browse the directory</a>.</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<article class="wrap section section--top narrow prose" aria-labelledby="about-h">
+  <h1 id="about-h">About {{ site.name }}</h1>
+  <p class="lead-answer">{{ site.name }} publishes answer-first, dated profiles of {{ overview.companies|num }} U.S.-listed companies, built from SEC filings and licensed market reference data by {{ site.organization.name }}.</p>
+
+  <section id="data" aria-labelledby="data-h">
+    <h2 id="data-h">Where does {{ site.name }} get its data?</h2>
+    <p class="answer">Company facts come from SEC filings and a licensed U.S. market reference data feed, refreshed every day.</p>
+    <p>The feed supplies each company's listing, identifiers (CIK, FIGI), industry code, address, shares outstanding, market cap and headcount. Business descriptions trace to the company's public filings. Our reference data was last refreshed on {{ as_of|asof }}.</p>
+  </section>
+
+  <section id="methodology" aria-labelledby="methodology-h">
+    <h2 id="methodology-h">How does {{ site.name }} classify companies?</h2>
+    <p class="answer">Every company is classified once, by fixed rules, so the same company carries the same labels on every page.</p>
+    <ul>
+      <li><b>Sector</b> comes from the company's four-digit SEC SIC code. Companies without one are "Not classified".</li>
+      <li><b>Security type</b> is Common stock, ADR, or SPAC (SIC code 6770 or a "blank check" description).</li>
+      <li><b>Size</b> follows market cap: mega ($200B+), large ($10B+), mid ($2B+), small ($300M+), micro ($50M+) and nano (below $50M).</li>
+      <li><b>Display names</b> drop share-class and legal suffixes, so "Alcoa Corporation" shows as "Alcoa".</li>
+    </ul>
+    <p>ETFs, warrants, rights, units and preferred shares are not companies and have no profiles. SPACs, delisted companies, and sectors or exchanges with fewer than three companies have pages but are kept out of search indexes.</p>
+  </section>
+
+  <section id="freshness" aria-labelledby="freshness-h">
+    <h2 id="freshness-h">How fresh are the figures on {{ site.name }}?</h2>
+    <p class="answer">Every figure shows the date it is true as of: a company's own last refresh on its profile, and the last reference refresh on lists and hubs.</p>
+    <p>Market cap moves with the share price every trading day, so treat it as indicative. Verify figures against the company's filings before acting on them.</p>
+  </section>
+
+  <section id="team" aria-labelledby="team-h">
+    <h2 id="team-h">Who writes and reviews {{ site.name }}?</h2>
+    {% for a in authors %}
+    <div class="author" id="{{ a.slug }}">
+      <span class="author__tile" aria-hidden="true">{{ a.name|slice:":1" }}</span>
+      <div><h3 class="author__name">{{ a.name }} <span class="muted">· {{ a.role }}</span></h3><p class="author__bio">{{ a.bio }}</p></div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section id="corrections" aria-labelledby="corrections-h">
+    <h2 id="corrections-h">How do I report an error?</h2>
+    <p class="answer">Email <a href="mailto:{{ site.organization.email }}">{{ site.organization.email }}</a> with the page and the figure; verified errors are corrected at the next data refresh.</p>
+  </section>
+
+  <section id="advice" aria-labelledby="advice-h">
+    <h2 id="advice-h">Is {{ site.name }} investment advice?</h2>
+    <p class="answer">No. {{ site.name }} is informational and educational only and never recommends buying or selling a security.</p>
+  </section>
+</article>
+{% endblock %}

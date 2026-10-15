@@ -1,19 +1,7 @@
-from django.conf import settings
 from django.core.cache import cache
 from django.db import connections
 from django.db.utils import OperationalError
 from django.http import JsonResponse
-
-
-def service_landing(request):
-    """Root endpoint — quick sanity check that the service is up."""
-    return JsonResponse(
-        {
-            "service": settings.PROJECT_NAME,
-            "env": settings.ENV_TYPE,
-            "status": "ok",
-        }
-    )
 
 
 def health_check(request):

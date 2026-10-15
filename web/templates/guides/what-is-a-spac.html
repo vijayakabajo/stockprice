@@ -1,0 +1,43 @@
+{% extends "pages/guide.html" %}
+{% load web %}
+{% block body %}
+{% with l=stats.listing %}
+<section id="definition" aria-labelledby="definition-h">
+  <h2 id="definition-h">What is a SPAC?</h2>
+  <p class="answer">A SPAC, or special purpose acquisition company, is a shell company that sells shares in an IPO to raise cash, then uses that cash to merge with a private operating business.</p>
+  <p>SPACs are also called blank check companies, because investors fund them before anyone knows which business they will buy. The SEC's investor bulletin on SPACs covers both stages: the shell before a deal, and the merged company after it [1].</p>
+</section>
+
+<section id="how" aria-labelledby="how-h">
+  <h2 id="how-h">How does a SPAC work?</h2>
+  <p class="answer">A SPAC raises money, holds it in a trust account, searches for a private company to merge with, and either completes that merger or returns the money by a deadline.</p>
+  <ol class="steps">
+    <li><b>IPO.</b> The SPAC lists on an exchange and sells shares, often bundled with warrants.</li>
+    <li><b>Trust account.</b> The IPO money is held by a third party until a merger closes or the SPAC liquidates [1].</li>
+    <li><b>Search.</b> The sponsors look for a private company to acquire, within a deadline set in the SPAC's charter.</li>
+    <li><b>Vote and redemption.</b> Shareholders vote on the proposed deal and can usually redeem their shares for cash from the trust instead.</li>
+    <li><b>De-SPAC.</b> The merger closes, the private company becomes the listed company, and the ticker usually changes.</li>
+  </ol>
+</section>
+
+<section id="count" aria-labelledby="count-h">
+  <h2 id="count-h">How many SPACs trade on U.S. exchanges?</h2>
+  <p class="answer">{{ l.count|num }} SPACs were actively listed on U.S. exchanges as of {{ l.as_of|asof }}, by our classification.</p>
+  <p>We classify a company as a SPAC when its SEC industry code is 6770 (blank checks) or its business description calls it a blank check company. The largest by market cap:</p>
+  {% include "partials/stock_table.html" with rows=l.results max_cap=stats.max_cap caption="Largest U.S.-listed SPACs by market cap" hide_type=True hide_sector=True hide_hq=True %}
+  <p><a href="{% url 'web:directory' %}?type=spac">See all {{ l.count|num }} SPACs →</a></p>
+</section>
+
+<section id="thin-pages" aria-labelledby="thin-pages-h">
+  <h2 id="thin-pages-h">Why do SPAC profiles on this site look thin?</h2>
+  <p class="answer">A SPAC has no operating business before its merger, so it has no revenue, products or meaningful headcount to report.</p>
+  <p>SPAC profiles show what does exist, such as the listing, identifiers, market cap and filings, and are kept out of search engine indexes until a merger turns the shell into an operating company.</p>
+</section>
+
+<section id="checks" aria-labelledby="checks-h">
+  <h2 id="checks-h">What should investors check before buying a SPAC?</h2>
+  <p class="answer">The SEC suggests reviewing the sponsors' backgrounds and the SPAC's IPO prospectus and periodic reports on EDGAR, because a SPAC has no operating history to judge [1].</p>
+  <p>Those filings also set out the sponsors' economic interests, the warrant terms and the merger deadline [2]. Warrants that are not exercised in time can expire worthless.</p>
+</section>
+{% endwith %}
+{% endblock %}

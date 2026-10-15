@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top" aria-labelledby="ex-h">
+  <div class="section-head">
+    <h1 id="ex-h">U.S. stock exchanges</h1>
+    <p class="asof">Reference data as of <time datetime="{{ data.as_of|isodate }}">{{ data.as_of|asof }}</time></p>
+  </div>
+  {% with top=data.results.0 %}<p class="lead-answer">{{ data.results|length }} U.S. exchanges are the primary listing venue for the companies we cover. {{ top.name }} lists the most, with {{ top.companies|num }} companies worth {{ top.total_market_cap|cap }} combined.</p>{% endwith %}
+  <ul class="exchange-grid">{% for e in data.results %}
+    <li class="card exchange-card">
+      <h2><a href="{% url 'web:exchange' slug=e.slug %}">{{ e.name }}</a></h2>
+      <dl>
+        <div><dt>Listed companies</dt><dd class="num">{{ e.companies|num }}</dd></div>
+        <div><dt>Combined market cap</dt><dd class="num">{{ e.total_market_cap|cap }}</dd></div>
+      </dl>
+    </li>{% endfor %}
+  </ul>
+
+  <section class="hub-section narrow" aria-labelledby="primary-h">
+    <h2 id="primary-h">What is a company's primary exchange?</h2>
+    <p class="answer">A company's primary exchange is the stock exchange where its shares are listed and where it must meet that exchange's listing standards.</p>
+    <p>A listed stock can also trade on other exchanges and venues, but it has one primary listing. Nasdaq and the New York Stock Exchange (NYSE) are the primary listing for most U.S. companies; NYSE American lists mainly smaller companies. Each exchange page above ranks its listed companies by market cap.</p>
+  </section>
+</section>
+{% endblock %}

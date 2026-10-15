@@ -1,0 +1,46 @@
+{% extends "pages/guide.html" %}
+{% load web %}
+{% block body %}
+{% with l=stats.listing %}
+<section id="definition" aria-labelledby="definition-h">
+  <h2 id="definition-h">What is an ADR?</h2>
+  <p class="answer">An American depositary receipt (ADR) is a certificate issued by a U.S. depositary bank that represents shares of a non-U.S. company and trades in U.S. dollars.</p>
+  {% include "components/quote.html" with text="ADRs allow U.S. investors to invest in non-U.S. companies and give non-U.S. companies easier access to the U.S. capital markets." cite_title="Investor Bulletin: American Depositary Receipts" cite_url="https://www.sec.gov/investor/alerts/adr-bulletin.pdf" cite_publisher="U.S. Securities and Exchange Commission, August 2012" %}
+</section>
+
+<section id="how" aria-labelledby="how-h">
+  <h2 id="how-h">How do ADRs work?</h2>
+  <p class="answer">A U.S. bank holds shares of the foreign company and issues ADRs against them, so each ADR represents one share, a fraction of a share or several shares.</p>
+  <p>That ratio lets an ADR trade at a price typical of U.S. shares. ADRs trade and settle in U.S. dollars through U.S. systems, so holders avoid dealing in a foreign currency, and they can usually be exchanged back for the underlying shares [1].</p>
+</section>
+
+<section id="history" aria-labelledby="history-h">
+  <h2 id="history-h">How long have ADRs existed, and how many are there?</h2>
+  <p class="answer">The first ADR was created in 1927, and in 2012 the SEC counted more than 2,000 ADRs representing companies from more than 70 countries [1].</p>
+  <dl class="stats">
+    {% include "components/stat.html" with label="First ADR" value="1927" note="for a British department store (SEC, 2012)" %}
+    {% include "components/stat.html" with label="ADRs available" value="2,000+" note="SEC count, August 2012" %}
+    {% include "components/stat.html" with label="Exchange-listed ADRs we cover" value=l.count|num note="live count" %}
+  </dl>
+  <p>Many ADRs trade over the counter; the {{ l.count|num }} in our data, as of {{ l.as_of|asof }}, are those listed on a U.S. exchange.</p>
+</section>
+
+<section id="listed" aria-labelledby="listed-h">
+  <h2 id="listed-h">Which are the largest ADRs on U.S. exchanges?</h2>
+  <p class="answer">{% if l.results %}The largest exchange-listed ADR we cover is {{ l.results.0.display_name|default:l.results.0.name }} ({{ l.results.0.ticker }}), at about {{ l.results.0.market_cap|cap }} as of {{ l.as_of|asof }}.{% else %}No exchange-listed ADRs are in our data yet.{% endif %}</p>
+  {% include "partials/stock_table.html" with rows=l.results max_cap=stats.max_cap caption="Largest exchange-listed ADRs by market cap" hide_type=True hide_hq=True %}
+  <p><a href="{% url 'web:directory' %}?type=adr">See all {{ l.count|num }} ADRs →</a></p>
+</section>
+
+<section id="differences" aria-labelledby="differences-h">
+  <h2 id="differences-h">How is an ADR different from U.S. common stock?</h2>
+  <p class="answer">An ADR adds a depositary bank between the investor and the company, which brings currency, fee and reporting differences.</p>
+  <ul>
+    <li><b>Currency.</b> The ADR is priced in dollars, but the business earns in its home currency, so exchange rates affect its value.</li>
+    <li><b>Fees.</b> Depositary banks may charge custody fees, often deducted from dividends.</li>
+    <li><b>Reporting.</b> Many foreign issuers file an annual Form 20-F instead of a 10-K, on a different schedule [2].</li>
+    <li><b>Voting.</b> Shareholder votes usually pass through the depositary bank.</li>
+  </ul>
+</section>
+{% endwith %}
+{% endblock %}

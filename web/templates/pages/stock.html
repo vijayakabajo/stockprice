@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<article class="wrap profile" aria-labelledby="profile-h">
+  <header class="profile__head">
+    {% monogram p.ticker "mono-tile--lg" %}
+    <div class="profile__title">
+      <h1 id="profile-h">{{ copy.name }} ({{ p.ticker }}) stock profile</h1>
+      <ul class="tags" aria-label="Classification">
+        {% if p.exchange %}<li><a class="chip" href="{% url 'web:exchange' slug=p.exchange.slug %}">{{ p.exchange.name }}</a></li>{% endif %}
+        <li><a class="badge badge--plain" href="{% url 'web:sector' slug=p.sector.slug %}">{{ p.sector.name }}</a></li>
+        <li><span class="badge{% if p.security_type == 'spac' %} badge--warn{% endif %}">{{ p.security_type|type_label }}</span></li>
+        <li><span class="badge {% if p.active %}badge--live{% else %}badge--plain{% endif %}">{% if p.active %}<span class="dot" aria-hidden="true"></span>Active{% else %}Inactive{% endif %}</span></li>
+      </ul>
+      {% include "components/byline.html" with author=author published=page.published modified=page.modified %}
+    </div>
+  </header>
+
+  {% if p.security_type == "spac" %}
+  <div class="notice notice--warn" role="note"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+    <p><b>Pre-merger shell.</b> {{ copy.name }} is a blank check company (SPAC) with no operating business yet. Most figures stay thin until it announces and closes a merger. <a href="{% url 'web:guide' slug='what-is-a-spac' %}">How SPACs work →</a></p></div>
+  {% elif p.security_type == "adr" %}
+  <div class="notice" role="note"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15 0 18M12 3c-2.5 2.7-2.5 15 0 18"/></svg>
+    <p><b>U.S.-listed ADR.</b> {{ copy.name }} is a non-U.S. company whose shares trade in the U.S. as American depositary receipts. Its home-market reporting can differ from U.S. filers. <a href="{% url 'web:guide' slug='what-is-an-adr' %}">How ADRs work →</a></p></div>
+  {% endif %}
+  {% if not p.active %}
+  <div class="notice" role="note"><p><b>No longer listed.</b> {{ copy.name }} is not actively trading. This page is kept for reference and shows the last data we hold.</p></div>
+  {% endif %}
+
+  <div class="profile__grid">
+    <div class="profile__main">
+      <section class="takeaways" aria-labelledby="takeaways-h">
+        <h2 id="takeaways-h">Key takeaways</h2>
+        <ul>{% for t in copy.takeaways %}<li>{{ t }}</li>{% endfor %}</ul>
+      </section>
+
+      <dl class="statstrip statstrip--compact">
+        <div><dt>Market cap</dt><dd class="num">{{ p.market_cap|cap }}</dd></div>
+        <div><dt>Employees</dt><dd class="num">{{ p.total_employees|num }}</dd></div>
+        <div><dt>Size</dt><dd>{{ p.size_bucket|size_label }}</dd></div>
+        <div><dt>HQ</dt><dd>{{ copy.hq|default:"n/a" }}</dd></div>
+      </dl>
+
+      <section id="overview" aria-labelledby="overview-h">
+        <h2 id="overview-h">What is {{ copy.name }}?</h2>
+        <p class="answer">{{ copy.lead }}</p>
+        {% if copy.rank_sentence %}<p>{{ copy.rank_sentence }}</p>{% endif %}
+        <p>This profile covers {{ copy.name }}'s business, key figures, identifiers and filings. Every figure is dated to our last data refresh for {{ copy.name }}, on {{ p.as_of|asof }}.</p>
+      </section>
+
+      <section id="business" aria-labelledby="business-h">
+        <h2 id="business-h">What does {{ copy.name }} do?</h2>
+        <p class="answer">{{ copy.does }}</p>
+        {% if p.description %}<p class="desc">{{ p.description }}</p>
+        <p class="src">Business description from {{ copy.name }}'s public filings and reference data.</p>{% endif %}
+      </section>
+
+      <section id="facts" aria-labelledby="facts-h">
+        <h2 id="facts-h">Key facts about {{ copy.name }}</h2>
+        <p class="answer">{{ copy.name }} ({{ p.ticker }}) is listed on {{ p.exchange.name|default:"a U.S. exchange" }} and priced in {{ p.currency }}; its core reference facts as of {{ p.as_of|asof }} are below.</p>
+        <div class="table-wrap">
+          <table class="kv">
+            <caption class="visually-hidden">Key facts about {{ copy.name }}, as of {{ p.as_of|asof }}</caption>
+            <tbody>
+              <tr><th scope="row">Company name</th><td>{{ p.name }}</td></tr>
+              <tr><th scope="row">Ticker</th><td>{{ p.ticker }}</td></tr>
+              {% if p.exchange %}<tr><th scope="row">Exchange</th><td><a href="{% url 'web:exchange' slug=p.exchange.slug %}">{{ p.exchange.name }}</a></td></tr>{% endif %}
+              <tr><th scope="row">Security type</th><td>{{ p.security_type|type_name }}</td></tr>
+              <tr><th scope="row">Sector (SIC)</th><td><a href="{% url 'web:sector' slug=p.sector.slug %}">{{ p.sector.name }}</a></td></tr>
+              {% if p.market_cap is not None %}<tr><th scope="row">Market cap</th><td>{{ p.market_cap|cap }} <span class="muted">as of {{ p.as_of|asof }}</span></td></tr>{% endif %}
+              {% if p.shares_outstanding %}<tr><th scope="row">Shares outstanding</th><td>{{ p.shares_outstanding.value|num }} <span class="muted">{% if p.shares_outstanding.basis == "class" %}this share class{% else %}weighted, all classes{% endif %}</span></td></tr>{% endif %}
+              {% if p.total_employees %}<tr><th scope="row">Employees</th><td>{{ p.total_employees|num }}</td></tr>{% endif %}
+              {% if p.cap_per_employee %}<tr><th scope="row">Market cap per employee</th><td>{{ p.cap_per_employee|cap }}</td></tr>{% endif %}
+              {% if p.address %}<tr><th scope="row">Headquarters</th><td>{% if p.address.line1 %}{{ p.address.line1 }}, {% endif %}{{ p.address.city }}{% if p.address.state %}, {{ p.address.state }}{% endif %}{% if p.address.postal_code %} {{ p.address.postal_code }}{% endif %}</td></tr>{% endif %}
+              {% if p.website %}<tr><th scope="row">Website</th><td><a href="{{ p.website }}" target="_blank" rel="noopener nofollow">{{ p.website|cut:"https://"|cut:"http://" }}</a></td></tr>{% endif %}
+              {% if p.list_date %}<tr><th scope="row">Listed since</th><td>{{ p.list_date|asof }}</td></tr>{% endif %}
+              <tr><th scope="row">Country</th><td>{{ p.country }}</td></tr>
+              <tr><th scope="row">Currency</th><td>{{ p.currency }}</td></tr>
+              <tr><th scope="row">Listing status</th><td>{% if p.active %}Active{% else %}Inactive{% endif %}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {% if p.market_cap is not None %}
+      <section id="market-cap" aria-labelledby="market-cap-h">
+        <h2 id="market-cap-h">How big is {{ copy.name }} by market cap?</h2>
+        <p class="answer">{{ copy.cap_sentence }}</p>
+        {% if copy.rank_sentence %}<p>{{ copy.rank_sentence }} Market cap moves every trading day with the share price.</p>{% endif %}
+        <p class="callout"><b>Market cap</b> is the share price multiplied by the shares outstanding. It measures the value of the equity, not the price of buying the whole company. <a href="{% url 'web:guide' slug='what-is-market-cap' %}">Read the market cap guide →</a></p>
+        <h3>{{ copy.name }} against the largest U.S. companies</h3>
+        {% include "partials/cap_bars.html" with rows=peers.context max_cap=context_max highlight=p.ticker label="Market cap compared with the largest U.S. companies" %}
+        <p class="src">Indicative market caps as of {{ peers.as_of|asof }}.</p>
+      </section>
+      {% endif %}
+
+      {% if peers.peers %}
+      <section id="peers" aria-labelledby="peers-h">
+        <h2 id="peers-h">How does {{ copy.name }} compare with its peers?</h2>
+        <p class="answer">The closest U.S.-listed peers of {{ copy.name }} by industry are {% for r in peers.peers|slice:":3" %}{{ r.display_name|default:r.name }} ({{ r.ticker }}){% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}, ranked by market cap below.</p>
+        {% include "partials/stock_table.html" with rows=peers.peers max_cap=peers.peers.0.market_cap caption="Peer companies ranked by market cap" hide_hq=True hide_type=True %}
+      </section>
+      {% endif %}
+
+      <section id="identifiers" aria-labelledby="identifiers-h">
+        <h2 id="identifiers-h">{{ copy.name }} identifiers and share structure</h2>
+        <p class="answer">These codes identify {{ copy.name }} and its {{ p.ticker }} shares across SEC filings and market data feeds.</p>
+        <div class="table-wrap">
+          <table class="kv">
+            <caption class="visually-hidden">Identifiers for {{ copy.name }}</caption>
+            <tbody>
+              {% if p.cik %}<tr><th scope="row">CIK</th><td>{{ p.cik }}</td></tr>{% endif %}
+              {% if p.composite_figi %}<tr><th scope="row">Composite FIGI</th><td>{{ p.composite_figi }}</td></tr>{% endif %}
+              {% if p.share_class_figi %}<tr><th scope="row">Share class FIGI</th><td>{{ p.share_class_figi }}</td></tr>{% endif %}
+              {% if p.sic_code %}<tr><th scope="row">SIC code</th><td>{{ p.sic_code }}</td></tr>{% endif %}
+              {% if p.ticker_root %}<tr><th scope="row">Ticker root</th><td>{{ p.ticker_root }}</td></tr>{% endif %}
+              {% if p.round_lot %}<tr><th scope="row">Round lot</th><td>{{ p.round_lot|num }} shares</td></tr>{% endif %}
+            </tbody>
+          </table>
+        </div>
+        {% if p.edgar_url %}<p><a class="btn btn--ghost btn--small" href="{{ p.edgar_url }}" target="_blank" rel="noopener">{{ copy.name }} filings on SEC EDGAR (CIK {{ p.cik }}) →</a></p>{% endif %}
+      </section>
+
+      <section id="financials" aria-labelledby="financials-h">
+        <h2 id="financials-h">{{ copy.name }} financials</h2>
+        <p class="answer">Revenue, earnings and dividend figures for {{ copy.name }} are not yet in our dataset.</p>
+        <p>Until they are, the primary source is {{ copy.name }}'s own reporting: annual reports (Form 10-K{% if p.security_type == "adr" %}, or Form 20-F for most foreign issuers{% endif %}) and quarterly reports (Form 10-Q){% if p.edgar_url %}, all free on <a href="{{ p.edgar_url }}" target="_blank" rel="noopener">SEC EDGAR</a>{% endif %}. Delayed quotes and a price chart for {{ p.ticker }} are planned and will carry their own timestamps.</p>
+      </section>
+
+      {% if sector_primer %}
+      <section id="sector" aria-labelledby="sector-h">
+        <h2 id="sector-h">What is the {{ p.sector.name }} sector?</h2>
+        <p class="answer">{{ sector_primer }}</p>
+        <p><a href="{% url 'web:sector' slug=p.sector.slug %}">See every {{ p.sector.name }} company, ranked by market cap →</a></p>
+      </section>
+      {% endif %}
+
+      <section id="terms" aria-labelledby="terms-h">
+        <h2 id="terms-h">Key terms on this page</h2>
+        <dl class="glossary">{% for t in terms %}
+          <div><dt>{{ t.name }}</dt><dd>{{ t.definition }}</dd></div>{% endfor %}
+        </dl>
+        <p><a href="{% url 'web:glossary' %}">Full glossary →</a></p>
+      </section>
+
+      {% include "components/faq.html" with faqs=copy.faqs heading="Frequently asked questions about "|add:copy.name %}
+
+      <section id="sources" aria-labelledby="sources-h">
+        <h2 id="sources-h">Sources and methodology</h2>
+        <p>{{ copy.name }}'s profile is built from SEC filings and licensed U.S. market reference data, last refreshed for {{ copy.name }} on {{ p.as_of|asof }}. Classification (sector, security type, size) is derived from those fields by <a href="{% url 'web:about' %}#methodology">published rules</a>.</p>
+        <ol class="sources">
+          {% if p.edgar_url %}<li><a href="{{ p.edgar_url }}" target="_blank" rel="noopener">{{ p.name }}: company filings</a>. <span class="muted">U.S. Securities and Exchange Commission, EDGAR, CIK {{ p.cik }}.</span></li>{% endif %}
+          {% if p.website %}<li><a href="{{ p.website }}" target="_blank" rel="noopener nofollow">{{ copy.name }} corporate website</a>. <span class="muted">{{ copy.name }}.</span></li>{% endif %}
+          <li>U.S. market reference data: listing, identifiers, shares outstanding, market cap and headcount. <span class="muted">Licensed data feed, refreshed {{ p.as_of|asof }}.</span></li>
+        </ol>
+      </section>
+
+      {% include "components/author.html" with author=author published=page.published modified=page.modified %}
+
+      {% if peers.related %}
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related companies</h2>
+        <ul class="related__list">{% for r in peers.related %}
+          <li><a class="card related__card" href="{{ r.ticker|stock_url }}">{% monogram r.ticker %}<span><span class="tkr">{{ r.ticker }}</span><span class="related__name">{{ r.display_name|default:r.name }}</span></span></a></li>{% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <p class="disclaimer">Informational and educational only. Not investment advice, and not an offer or solicitation to buy or sell {{ p.ticker }} or any security. Figures are indicative and dated; market values move with price.</p>
+    </div>
+
+    <aside class="profile__aside" aria-label="At a glance">
+      <div class="card glance">
+        <p class="eyebrow">At a glance</p>
+        <dl class="glance__list">
+          <div><dt>Market cap</dt><dd class="num">{{ p.market_cap|cap }}</dd></div>
+          <div><dt>Size</dt><dd>{{ p.size_bucket|size_label }}</dd></div>
+          {% if peers.rank %}<div><dt>Rank by market cap</dt><dd class="num">#{{ peers.rank|num }} <span class="muted">of {{ peers.ranked_total|num }}</span></dd></div>{% endif %}
+          <div><dt>Employees</dt><dd class="num">{{ p.total_employees|num }}</dd></div>
+          <div><dt>Exchange</dt><dd>{{ p.exchange.name|default:"n/a" }}</dd></div>
+        </dl>
+        <p class="glance__note">Indicative, as of <time datetime="{{ p.as_of|isodate }}">{{ p.as_of|asof }}</time>. Delayed price quotes are coming soon.</p>
+      </div>
+      <nav class="toc" aria-label="On this page">
+        <p class="toc__label">On this page</p>
+        <ol>{% for anchor, label in toc %}<li><a href="#{{ anchor }}">{{ label }}</a></li>{% endfor %}</ol>
+      </nav>
+    </aside>
+  </div>
+</article>
+{% endblock %}

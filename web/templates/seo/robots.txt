@@ -1,0 +1,14 @@
+{% autoescape off %}# {{ site.name }} — every page is server-rendered and open to search and AI crawlers.
+# Each crawler is named explicitly: a named group replaces the "*" group for
+# that crawler, so every group repeats the same rules.
+{% for bot in crawlers %}
+User-agent: {{ bot }}
+Allow: /
+{% for path in disallow %}Disallow: {{ path }}
+{% endfor %}{% endfor %}
+User-agent: *
+Allow: /
+{% for path in disallow %}Disallow: {{ path }}
+{% endfor %}
+Sitemap: {{ sitemap }}
+{% endautoescape %}

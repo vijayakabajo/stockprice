@@ -1,4 +1,4 @@
-.PHONY: run migrate makemigrations apply-sql sql-list check-drift lint format shell
+.PHONY: run migrate makemigrations apply-sql sql-list check-drift lint format shell assets images collectstatic verify
 
 run:
 	python manage.py runserver
@@ -31,3 +31,18 @@ format:
 
 shell:
 	python manage.py shell
+
+# Site assets: CSS/JS/fonts into web/static/web/ (needs `npm install` once).
+assets:
+	npm run build
+
+images:
+	npm run build:images
+
+collectstatic:
+	python manage.py collectstatic --noinput
+
+# Crawler's-eye check of a running site: make verify URL=https://www.example.com
+URL ?= http://localhost:8000
+verify:
+	python scripts/verify_site.py $(URL)

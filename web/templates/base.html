@@ -1,0 +1,53 @@
+{% load static web %}<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ page.title|default:site.name }}{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}{{ page.description|default:site.description }}{% endblock %}">
+{% block canonical %}{% if page.canonical %}<link rel="canonical" href="{{ page.canonical }}">{% endif %}{% endblock %}
+<meta name="robots" content="{% block robots %}{{ page.robots|default:'noindex, follow' }}{% endblock %}">
+{# Applies a saved theme before first paint, so dark-mode readers never see a white flash. #}
+<script>try{var t=localStorage.getItem("ep-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preload" href="{% static 'web/fonts/bricolage-grotesque-latin-wght.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'web/fonts/ibm-plex-mono-latin-400.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% static 'web/css/site.css' %}">
+<script src="{% static 'web/js/site.js' %}" defer></script>
+<meta name="theme-color" content="#F7F5FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="{% static 'web/img/favicon.svg' %}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{% static 'web/img/apple-touch-icon.png' %}">
+{% block social %}
+<meta property="og:site_name" content="{{ site.name }}">
+<meta property="og:locale" content="{{ site.locale }}">
+<meta property="og:type" content="{% block og_type %}{{ page.og_type|default:'website' }}{% endblock %}">
+<meta property="og:title" content="{% block og_title %}{{ page.title|default:site.name }}{% endblock %}">
+<meta property="og:description" content="{% block og_description %}{{ page.description|default:site.description }}{% endblock %}">
+{% if page.canonical %}<meta property="og:url" content="{{ page.canonical }}">{% endif %}
+{% if page.image_url %}<meta property="og:image" content="{{ page.image_url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ page.image_alt|default:page.title }}">{% endif %}
+{% if page.published %}<meta property="article:published_time" content="{{ page.published|isodate }}">{% endif %}
+{% if page.modified %}<meta property="article:modified_time" content="{{ page.modified|isodate }}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+{% if site.twitter %}<meta name="twitter:site" content="{{ site.twitter }}">{% endif %}
+<meta name="twitter:title" content="{{ page.title|default:site.name }}">
+<meta name="twitter:description" content="{{ page.description|default:site.description }}">
+{% if page.image_url %}<meta name="twitter:image" content="{{ page.image_url }}">{% endif %}
+{% endblock %}
+{% block json_ld %}{{ page.jsonld|jsonld }}{% endblock %}
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{% include "partials/header.html" %}
+<main id="main" tabindex="-1">
+{% block breadcrumbs %}{% if page.breadcrumbs %}{% include "partials/breadcrumbs.html" with crumbs=page.breadcrumbs %}{% endif %}{% endblock %}
+{% block content %}{% endblock %}
+</main>
+{% include "partials/footer.html" %}
+{# Islands: a page that needs a rich widget (e.g. a price chart) mounts it here, as a deferred module, on that page only. #}
+{% block islands %}{% endblock %}
+</body>
+</html>

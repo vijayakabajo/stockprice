@@ -1,0 +1,31 @@
+{% load web %}{# rows, max_cap, caption; optional: hide_type, hide_sector, hide_exchange, hide_hq #}
+<div class="table-wrap">
+  <table class="stocks">
+    <caption class="{% if caption_visible %}table-caption{% else %}visually-hidden{% endif %}">{{ caption }}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Company</th>
+        {% if not hide_type %}<th scope="col">Type</th>{% endif %}
+        {% if not hide_exchange %}<th scope="col">Exchange</th>{% endif %}
+        {% if not hide_sector %}<th scope="col">Sector</th>{% endif %}
+        {% if not hide_hq %}<th scope="col">HQ</th>{% endif %}
+        <th scope="col" class="r">Employees</th>
+        <th scope="col" class="r">Market cap</th>
+      </tr>
+    </thead>
+    <tbody>{% for row in rows %}
+      <tr>
+        <th scope="row">
+          <a class="co" href="{{ row.ticker|stock_url }}">{% monogram row.ticker %}<span><span class="tkr">{{ row.ticker }}</span><span class="co__name">{{ row.display_name|default:row.name }}</span></span></a>
+        </th>
+        {% if not hide_type %}<td><span class="badge{% if row.security_type == 'spac' %} badge--warn{% elif row.security_type == 'adr' %} badge--accent{% else %} badge--plain{% endif %}">{{ row.security_type|type_label }}</span></td>{% endif %}
+        {% if not hide_exchange %}<td>{% if row.exchange %}<a class="chip" href="{% url 'web:exchange' slug=row.exchange.slug %}">{{ row.exchange.name }}</a>{% else %}<span class="muted">n/a</span>{% endif %}</td>{% endif %}
+        {% if not hide_sector %}<td class="sector-cell"><a class="sector-link" href="{% url 'web:sector' slug=row.sector.slug %}">{{ row.sector.name }}</a></td>{% endif %}
+        {% if not hide_hq %}<td class="muted">{{ row.hq|default:"n/a" }}</td>{% endif %}
+        <td class="r num">{% if row.total_employees %}{{ row.total_employees|num }}{% else %}<span class="muted">n/a</span>{% endif %}</td>
+        <td class="r num cap-cell"><span class="cap-cell__v">{{ row.market_cap|cap }}</span><span class="cap-cell__bar" aria-hidden="true"><i style="width:{{ row.market_cap|bar:max_cap }}"></i></span></td>
+      </tr>{% empty %}
+      <tr><td colspan="7" class="muted">No companies match.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top" aria-labelledby="sectors-h">
+  <div class="section-head">
+    <h1 id="sectors-h">U.S. stocks by sector</h1>
+    <p class="asof">Reference data as of <time datetime="{{ data.as_of|isodate }}">{{ data.as_of|asof }}</time></p>
+  </div>
+  <p class="lead-answer">U.S.-listed companies we cover fall into {{ classified|num }} industry sectors, defined by the SEC's Standard Industrial Classification (SIC) codes. {% with top=sectors.0 %}The largest by company count is {{ top.name }}, with {{ top.companies|num }} companies.{% endwith %}</p>
+  <div class="table-wrap">
+    <table class="hubs">
+      <caption class="visually-hidden">Sectors ranked by number of companies</caption>
+      <thead><tr><th scope="col">Sector</th><th scope="col" class="r">Companies</th><th scope="col" class="r">Combined market cap</th></tr></thead>
+      <tbody>{% for s in sectors %}
+        <tr>
+          <th scope="row"><a href="{% url 'web:sector' slug=s.slug %}">{{ s.name }}</a></th>
+          <td class="r num">{{ s.companies|num }}</td>
+          <td class="r num cap-cell"><span class="cap-cell__v">{{ s.total_market_cap|cap }}</span><span class="cap-cell__bar" aria-hidden="true"><i style="width:{{ s.total_market_cap|bar:max_cap }}"></i></span></td>
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

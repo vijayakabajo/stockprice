@@ -1,0 +1,8 @@
+{% load web %}{# rows, max_cap, highlight (ticker), label #}
+<div class="bars-host"><ol class="bars" aria-label="{{ label }}">{% for row in rows %}
+  <li class="bars__row{% if row.ticker == highlight %} is-me{% endif %}">
+    <a class="bars__label" href="{{ row.ticker|stock_url }}"><span class="tkr">{{ row.ticker }}</span> {{ row.display_name|default:row.name }}</a>
+    <span class="bars__track" aria-hidden="true"><i style="width:{{ row.market_cap|bar:max_cap }}"></i></span>
+    <span class="bars__v num">{{ row.market_cap|cap }}</span>
+  </li>{% endfor %}
+</ol></div>

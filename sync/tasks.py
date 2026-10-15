@@ -13,8 +13,10 @@ import logging
 from datetime import date
 
 from celery import shared_task
+from django.utils import timezone
 
 from sync import services
+from web.tasks import indexnow_ping_task
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +38,16 @@ def sync_stocks_task():
 
 @shared_task(soft_time_limit=3 * 3600, time_limit=3 * 3600 + 300, **SYNC_TASK_OPTIONS)
 def sync_stock_details_task(limit=None):
-    """Profiles, then sectors: new SIC codes only arrive with the profiles."""
+    """
+    Profiles, then sectors: new SIC codes only arrive with the profiles.
+    Then IndexNow hears about every profile page that was refreshed.
+    """
+    started = timezone.now()
     try:
         _run(services.sync_stock_details, limit=limit)
     finally:
         _run(services.refresh_sectors)
+        indexnow_ping_task.delay(started.isoformat())
 
 
 @shared_task(soft_time_limit=600, time_limit=900, **SYNC_TASK_OPTIONS)

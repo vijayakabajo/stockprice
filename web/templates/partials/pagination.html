@@ -1,0 +1,13 @@
+{% load web %}{# data: {page, num_pages, count} #}{% page_window data as pages %}
+{% if data.num_pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% if data.page > 1 %}<a href="{% page_url data.page|add:-1 %}" rel="prev">← Previous</a>{% else %}<span class="pager__off" aria-hidden="true">← Previous</span>{% endif %}
+  <span class="pager__pos">Page {{ data.page }} of {{ data.num_pages }}</span>
+  <ol class="pager__pages">
+    {% if data.page > 3 %}<li><a href="{% page_url 1 %}">1</a></li>{% if data.page > 4 %}<li class="pager__gap" aria-hidden="true">…</li>{% endif %}{% endif %}
+    {% for n in pages %}<li>{% if n == data.page %}<a href="{% page_url n %}" aria-current="page">{{ n }}</a>{% else %}<a href="{% page_url n %}">{{ n }}</a>{% endif %}</li>{% endfor %}
+    {% if data.page < data.num_pages|add:-2 %}{% if data.page < data.num_pages|add:-3 %}<li class="pager__gap" aria-hidden="true">…</li>{% endif %}<li><a href="{% page_url data.num_pages %}">{{ data.num_pages }}</a></li>{% endif %}
+  </ol>
+  {% if data.page < data.num_pages %}<a href="{% page_url data.page|add:1 %}" rel="next">Next →</a>{% else %}<span class="pager__off" aria-hidden="true">Next →</span>{% endif %}
+</nav>
+{% endif %}

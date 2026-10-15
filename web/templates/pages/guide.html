@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load web %}
+{# Layout for every guide. A guide template fills `body` with question-headed sections:
+   each <h2> is a question, the first <p class="answer"> answers it in one or two sentences,
+   and every section reads correctly on its own. Bracketed numbers cite the Sources list. #}
+{% block content %}
+<article class="wrap article" aria-labelledby="guide-h">
+  <header class="article__head">
+    <p class="eyebrow"><a href="{% url 'web:guides' %}">Guide</a></p>
+    <h1 id="guide-h">{{ guide.title }}</h1>
+    <p class="article__summary">{{ guide.summary }}</p>
+    {% include "components/byline.html" with author=author published=guide.published modified=guide.updated %}
+  </header>
+  {% if guide.image %}<div class="article__hero">{% include "components/picture.html" with src=guide.image alt=guide.image_alt width=1200 height=630 eager=True %}</div>{% endif %}
+  <div class="article__body">
+    {% block body %}{% endblock %}
+
+    <section id="sources" aria-labelledby="sources-h">
+      <h2 id="sources-h">Sources</h2>
+      {% include "components/sources.html" with sources=guide.sources %}
+      <p class="src">Live figures in this guide come from our U.S. reference data and update with every data refresh.</p>
+    </section>
+    {% include "components/author.html" with author=author published=guide.published modified=guide.updated %}
+    {% if related_guides %}
+    <section class="related" aria-labelledby="more-h">
+      <h2 id="more-h">More guides</h2>
+      <ul class="cards-3">{% for g in related_guides %}<li class="card guide-card"><h3><a href="{% url 'web:guide' slug=g.slug %}">{{ g.title }}</a></h3><p>{{ g.summary }}</p></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+    <p class="disclaimer">Educational only. Not investment advice.</p>
+  </div>
+</article>
+{% endblock %}

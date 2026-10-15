@@ -1,0 +1,30 @@
+{% load web %}{% autoescape off %}# {{ site.name }}
+
+> {{ site.description }} Covers {{ overview.companies|num }} active U.S.-listed companies with a combined market cap of {{ overview.total_market_cap|cap }}, reference data as of {{ overview.as_of|asof }}.
+
+Every page is server-rendered HTML; no content needs JavaScript. Each company profile opens with a one-sentence answer, dates every figure, and cites SEC EDGAR. Pages carry schema.org JSON-LD (Corporation, WebPage, FAQPage, BreadcrumbList, Article). Informational only, not investment advice.
+
+## Key pages
+
+- [Stock directory]({{ base }}{% url 'web:directory' %}): every covered U.S.-listed company, ranked by market cap
+- [Sectors]({{ base }}{% url 'web:sectors' %}): companies grouped by SEC SIC industry code
+- [Exchanges]({{ base }}{% url 'web:exchanges' %}): companies grouped by primary listing exchange
+- [Glossary]({{ base }}{% url 'web:glossary' %}): definitions of market cap, CIK, FIGI, SIC code, ADR, SPAC and more
+- [About and methodology]({{ base }}{% url 'web:about' %}): data sources, refresh schedule, classification rules
+
+## Company profile URLs
+
+Profiles live at `{{ base }}/stocks/<ticker>/`, with the ticker in lower case, e.g. `{{ base }}/stocks/{{ overview.largest.0.ticker|lower }}/`. The full list is in the [sitemap]({{ base }}{% url 'web:sitemap-index' %}).
+
+## Guides
+{% for g in guides %}
+- [{{ g.title }}]({{ base }}{% url 'web:guide' slug=g.slug %}): {{ g.summary }}{% endfor %}
+
+## Largest sectors
+{% for s in sectors %}{% if s.slug != "not-classified" %}
+- [{{ s.name }}]({{ base }}{% url 'web:sector' slug=s.slug %}): {{ s.companies|num }} companies, {{ s.total_market_cap|cap }} combined{% endif %}{% endfor %}
+
+## Exchanges
+{% for e in exchanges %}
+- [{{ e.name }}]({{ base }}{% url 'web:exchange' slug=e.slug %}): {{ e.companies|num }} companies, {{ e.total_market_cap|cap }} combined{% endfor %}
+{% endautoescape %}

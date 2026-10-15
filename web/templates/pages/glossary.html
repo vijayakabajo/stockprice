@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="wrap section section--top narrow" aria-labelledby="glossary-h">
+  <h1 id="glossary-h">Stock market glossary</h1>
+  <p class="lead-answer">Plain definitions of every term used on our company profiles. Each definition stands on its own, and each term has its own link.</p>
+  <nav class="az" aria-label="Terms"><ul>{% for t in terms %}<li><a href="#{{ t.slug }}">{{ t.name }}</a></li>{% endfor %}</ul></nav>
+  <dl class="glossary glossary--page">{% for t in terms %}
+    <div id="{{ t.slug }}"><dt>{{ t.name }}</dt><dd>{{ t.definition }}</dd></div>{% endfor %}
+  </dl>
+</section>
+{% endblock %}

@@ -17,6 +17,21 @@ jobs:
       - run: ruff check .
       - run: black --check .
 
+  # The built CSS/JS in web/static/web/ is committed so deploys need no Node.
+  # This fails if someone edited assets/ (or a template's classes) without
+  # rebuilding.
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: git diff --exit-code web/static/web/css web/static/web/js
+
   # A test job belongs here once there are tests. It needs a postgres:16
   # service (not mysql — see app/config/database.py) and a `manage.py apply_sql`
   # step before pytest, because every model is managed = False and Django

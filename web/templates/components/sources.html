@@ -1,0 +1,4 @@
+{# sources: [{title, url, publisher, published}] — cited sources, numbered #}
+<ol class="sources">{% for s in sources %}
+  <li><a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>. <span class="muted">{{ s.publisher }}{% if s.published %}, {{ s.published }}{% endif %}.</span></li>{% endfor %}
+</ol>

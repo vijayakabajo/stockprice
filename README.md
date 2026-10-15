@@ -37,8 +37,12 @@ app/            Django project config (settings, urls, wsgi/asgi, celery bootstr
 core/           Cross-cutting concerns: UnmanagedBaseModel, the api_response()
                 envelope, the DRF exception handler, pagination, health check,
                 and the apply_sql management command.
-market/         Stock, Exchange, Sector, DailyPrice, IntradayBar, and the page API
-                (/api/v1/...).
+market/         Stock, Exchange, Sector, DailyPrice, IntradayBar, the page API
+                (/api/v1/...) and the page payloads it shares with the site.
+web/            The public, server-rendered site: views, templates, SEO,
+                sitemaps, IndexNow. Built assets in web/static/web/.
+assets/         CSS and JS sources for the site; `npm run build` compiles them.
+scripts/        Asset and image build scripts, and verify_site.py.
 sync/           Sync jobs: services, Celery tasks, management commands, DataSyncJob.
 data_provider/  The Massive client — the only code that knows the provider.
 tests/          pytest suite; builds the test database from sql/.

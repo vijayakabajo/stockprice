@@ -60,6 +60,7 @@ DJANGO_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",  # trigram search lookups
+    "django.contrib.sitemaps",
 ]
 
 THIRD_PARTY_APPS = [
@@ -71,6 +72,7 @@ LOCAL_APPS = [
     "core",
     "market",
     "sync",
+    "web",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -109,6 +111,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "web.context_processors.site",
             ],
         },
     },
@@ -158,13 +161,50 @@ USE_TZ = True
 # Static & Media Files
 # ------------------------------------------------------------------------------
 
-# This is an API backend: the only static files are the ones Django admin and
-# DRF's browsable API ship with, collected here by `collectstatic`.
+# The site's own assets live in web/static/ and are built from assets/ by
+# `npm run build` (see FRONTEND.md). collectstatic copies them here, and
+# WhiteNoise serves them with a content hash in the name, precompressed
+# (gzip + Brotli) and cached for a year.
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+# Unhashed files (none are referenced by the site) get a day; hashed files
+# are marked immutable for a year by WhiteNoise regardless of this value.
+WHITENOISE_MAX_AGE = 0 if DEBUG else 24 * 3600
+# Fonts and images are already compressed; skip them when precompressing.
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ["woff2", "woff", "png", "jpg", "jpeg", "webp", "avif", "gz", "br"]
+
+# ------------------------------------------------------------------------------
+# Public site
+# ------------------------------------------------------------------------------
+from app.config.site import (
+    INDEXNOW_ENDPOINT,
+    INDEXNOW_KEY,
+    ORGANIZATION,
+    RELEASE,
+    SITE_DESCRIPTION,
+    SITE_LANGUAGE,
+    SITE_LOCALE,
+    SITE_NAME,
+    SITE_TAGLINE,
+    SITE_TWITTER,
+    SITE_URL,
+    indexnow_enabled,
+)
+
+INDEXNOW_ENABLED = indexnow_enabled(ENV_TYPE)
+
+# Hardening that costs nothing on a read-only public site.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # ------------------------------------------------------------------------------
 # Default Auto Field

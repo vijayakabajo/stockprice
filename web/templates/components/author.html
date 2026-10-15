@@ -1,0 +1,9 @@
+{# author: content.Author; published, modified: dates #}
+{% load web %}<aside class="author" aria-label="About the author">
+  <span class="author__tile" aria-hidden="true">{{ author.name|slice:":1" }}</span>
+  <div>
+    <p class="author__name">By <a href="{% url 'web:about' %}#{{ author.slug }}" rel="author">{{ author.name }}</a> <span class="muted">· {{ author.role }}</span></p>
+    <p class="author__bio">{{ author.bio }}</p>
+    <p class="author__dates">{% if published %}Published <time datetime="{{ published|isodate }}">{{ published|asof }}</time>{% endif %}{% if modified %} · Last updated <time datetime="{{ modified|isodate }}">{{ modified|asof }}</time>{% endif %}</p>
+  </div>
+</aside>

@@ -1,0 +1,5 @@
+{# A statistic with its date and source: value, label, note (e.g. "as of 22 Sep 2026, SEC filings") #}
+<div class="stat">
+  <dt>{{ label }}</dt>
+  <dd><span class="stat__v num">{{ value }}</span>{% if note %}<span class="stat__note">{{ note }}</span>{% endif %}</dd>
+</div>

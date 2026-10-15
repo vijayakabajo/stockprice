@@ -1,0 +1,7 @@
+{% load static %}{# A responsive raster image: AVIF, then WebP, then PNG fallback. src is the static path without extension.
+   width/height are required (no layout shift). Pass eager=True only for the above-the-fold LCP image. #}
+<picture>
+  <source type="image/avif" srcset="{% static src|add:'.avif' %}">
+  <source type="image/webp" srcset="{% static src|add:'.webp' %}">
+  <img src="{% static src|add:'.png' %}" alt="{{ alt }}" width="{{ width }}" height="{{ height }}"{% if eager %} fetchpriority="high"{% else %} loading="lazy"{% endif %} decoding="async"{% if class %} class="{{ class }}"{% endif %}>
+</picture>

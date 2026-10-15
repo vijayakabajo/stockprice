@@ -1,0 +1,5 @@
+{% load web %}<p class="byline">
+  <span>By <a href="{% url 'web:about' %}#{{ author.slug }}" rel="author">{{ author.name }}</a></span>
+  {% if published %}<span>Published <time datetime="{{ published|isodate }}">{{ published|asof }}</time></span>{% endif %}
+  {% if modified %}<span>Updated <time datetime="{{ modified|isodate }}">{{ modified|asof }}</time></span>{% endif %}
+</p>

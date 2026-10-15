@@ -1,0 +1,65 @@
+{% extends "pages/guide.html" %}
+{% load web %}
+{% block body %}
+{% with o=stats.overview s=stats.by_size %}
+<section id="definition" aria-labelledby="definition-h">
+  <h2 id="definition-h">What is market capitalization?</h2>
+  <p class="answer">Market capitalization, or market cap, is the total market value of a company's shares: the share price multiplied by the number of shares outstanding.</p>
+  <p>Market cap measures what the stock market values a company's equity at today. The SEC's investor education site, Investor.gov, defines it the same way, as share price times total outstanding shares [1].</p>
+</section>
+
+<section id="formula" aria-labelledby="formula-h">
+  <h2 id="formula-h">How do you calculate market cap?</h2>
+  <p class="answer">Multiply the current share price by the number of shares outstanding.</p>
+  <p class="callout"><b>Market cap = share price × shares outstanding.</b> A company with 100 million shares trading at $50 has a market cap of $5 billion.</p>
+  <p>Shares outstanding come from a company's SEC filings, such as the cover page of its 10-K or 10-Q [2]. When a company has several share classes, its total market cap adds up every class.</p>
+</section>
+
+<section id="size-classes" aria-labelledby="size-classes-h">
+  <h2 id="size-classes-h">What are mega, large, mid, small, micro and nano caps?</h2>
+  <p class="answer">They are size classes by market cap: mega caps are worth $200 billion or more and nano caps less than $50 million, with four classes in between.</p>
+  <p>The cut-offs are conventions, not regulations, and data providers draw them slightly differently. This site uses the thresholds below on every company profile. Company counts are live, as of {{ o.as_of|asof }}.</p>
+  <div class="table-wrap">
+    <table>
+      <caption class="table-caption">Market cap size classes and U.S. company counts, as of {{ o.as_of|asof }}</caption>
+      <thead><tr><th scope="col">Class</th><th scope="col">Market cap</th><th scope="col" class="r">U.S. companies</th></tr></thead>
+      <tbody>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=mega">Mega cap</a></th><td>$200B and above</td><td class="r num">{{ s.mega|default:0|num }}</td></tr>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=large">Large cap</a></th><td>$10B to $200B</td><td class="r num">{{ s.large|default:0|num }}</td></tr>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=mid">Mid cap</a></th><td>$2B to $10B</td><td class="r num">{{ s.mid|default:0|num }}</td></tr>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=small">Small cap</a></th><td>$300M to $2B</td><td class="r num">{{ s.small|default:0|num }}</td></tr>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=micro">Micro cap</a></th><td>$50M to $300M</td><td class="r num">{{ s.micro|default:0|num }}</td></tr>
+        <tr><th scope="row"><a href="{% url 'web:directory' %}?size=nano">Nano cap</a></th><td>Below $50M</td><td class="r num">{{ s.nano|default:0|num }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="us-market" aria-labelledby="us-market-h">
+  <h2 id="us-market-h">How much are all U.S.-listed companies worth?</h2>
+  <p class="answer">The {{ o.companies|num }} U.S.-listed companies we cover had a combined market cap of about {{ o.total_market_cap|cap }} as of {{ o.as_of|asof }}.</p>
+  <dl class="stats">
+    {% include "components/stat.html" with label="Companies covered" value=o.companies|num note="active U.S. listings" %}
+    {% include "components/stat.html" with label="Combined market cap" value=o.total_market_cap|cap note="indicative" %}
+    {% include "components/stat.html" with label="Average market cap" value=o.average_market_cap|cap note="per company" %}
+  </dl>
+  <p>The largest company we track is {{ o.largest.0.display_name|default:o.largest.0.name }} ({{ o.largest.0.ticker }}), at about {{ o.largest.0.market_cap|cap }}. See <a href="{% url 'web:directory' %}">the full directory ranked by market cap</a>.</p>
+</section>
+
+<section id="daily-moves" aria-labelledby="daily-moves-h">
+  <h2 id="daily-moves-h">Why does market cap change every day?</h2>
+  <p class="answer">Market cap changes whenever the share price changes, so it moves every trading day; it also shifts when a company issues or buys back shares.</p>
+  <p>That is why every market cap on this site carries an "as of" date. A market cap without a date cannot tell you whether it reflects today's price or last quarter's.</p>
+</section>
+
+<section id="limits" aria-labelledby="limits-h">
+  <h2 id="limits-h">What does market cap not tell you?</h2>
+  <p class="answer">Market cap values only a company's equity: it ignores debt and cash, and says nothing about profits.</p>
+  <ul>
+    <li><b>Debt and cash.</b> Enterprise value adds debt and subtracts cash, and is closer to the price of buying the whole business.</li>
+    <li><b>Profitability.</b> Two companies with the same market cap can earn very different profits; compare revenue and earnings in their 10-K filings.</li>
+    <li><b>Liquidity.</b> A large market cap does not guarantee that the shares trade often or in volume.</li>
+  </ul>
+</section>
+{% endwith %}
+{% endblock %}

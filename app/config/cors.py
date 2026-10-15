@@ -17,6 +17,11 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "")
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Serves /static/ itself, precompressed, and returns before anything below.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    # Compresses pages and API responses. Above every middleware that reads or
+    # writes the body; below WhiteNoise, so static files are never recompressed.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

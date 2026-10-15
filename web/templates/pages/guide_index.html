@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top" aria-labelledby="guides-h">
+  <h1 id="guides-h">Stock market guides</h1>
+  <p class="lead-answer">Short, sourced answers to the questions behind every company profile: what market cap measures, how SPACs and ADRs work, and how U.S. stocks are classified.</p>
+  <ul class="guide-list">{% for g in guides %}
+    <li class="card guide-card">
+      <h2><a href="{% url 'web:guide' slug=g.slug %}">{{ g.title }}</a></h2>
+      <p>{{ g.summary }}</p>
+      <p class="small muted">By {{ g.author.name }} · Updated <time datetime="{{ g.updated|isodate }}">{{ g.updated|asof }}</time></p>
+    </li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

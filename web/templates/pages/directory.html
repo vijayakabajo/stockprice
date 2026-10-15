@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top" aria-labelledby="dir-h">
+  <div class="section-head">
+    <h1 id="dir-h">{{ heading }}</h1>
+    <p class="asof">Reference data as of <time datetime="{{ data.as_of|isodate }}">{{ data.as_of|asof }}</time></p>
+  </div>
+  <p class="lead-answer">{% if filters %}{{ data.count|num }} U.S.-listed {{ data.count|pluralize:"company matches,companies match" }} these filters, ranked {% if filters.ordering == "name" %}by name{% elif filters.ordering == "ticker" %}by ticker{% elif filters.ordering == "-employees" %}by headcount{% else %}by market cap{% endif %}.{% else %}This directory lists all {{ overview.companies|num }} active U.S.-listed companies we cover, largest first, with a combined market cap of {{ overview.total_market_cap|cap }}.{% endif %}</p>
+
+  {% if not filters %}
+  <dl class="statstrip">
+    <div><dt>Companies</dt><dd class="num">{{ overview.companies|num }}</dd></div>
+    <div><dt>Combined cap</dt><dd class="num">{{ overview.total_market_cap|cap }}</dd></div>
+    <div><dt>Exchanges</dt><dd class="num">{{ overview.by_exchange|length }}</dd></div>
+    <div><dt>Sectors</dt><dd class="num">{{ overview.sectors_covered|num }}</dd></div>
+  </dl>
+  {% endif %}
+
+  <form class="filters" action="{% url 'web:directory' %}" method="get" data-autosubmit aria-label="Filter the directory">
+    <div class="filters__q">
+      <label for="f-q">Name or ticker</label>
+      <input id="f-q" name="q" type="search" value="{{ filters.q|default:'' }}" placeholder="Filter by ticker or name" autocomplete="off">
+    </div>
+    <div><label for="f-ex">Exchange</label>
+      <select id="f-ex" name="exchange"><option value="">All exchanges</option>{% for e in exchanges %}<option value="{{ e.slug }}"{% if filters.exchange == e.slug %} selected{% endif %}>{{ e.name }}</option>{% endfor %}</select></div>
+    <div><label for="f-type">Type</label>
+      <select id="f-type" name="type"><option value="">All types</option>{% for v, label in types %}<option value="{{ v }}"{% if filters.type == v %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="f-sector">Sector</label>
+      <select id="f-sector" name="sector"><option value="">All sectors</option>{% for s in sectors %}<option value="{{ s.slug }}"{% if filters.sector == s.slug %} selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+    <div><label for="f-size">Size</label>
+      <select id="f-size" name="size"><option value="">All sizes</option>{% for v, label in sizes %}<option value="{{ v }}"{% if filters.size == v %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="f-sort">Sort</label>
+      <select id="f-sort" name="ordering">{% for v, label in orderings %}<option value="{{ v }}"{% if filters.ordering == v or not filters.ordering and v == "-market_cap" %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="filters__actions">
+      <button class="btn btn--small" type="submit">Apply</button>
+      {% if filters %}<a class="btn btn--ghost btn--small" href="{% url 'web:directory' %}">Clear</a>{% endif %}
+    </div>
+  </form>
+
+  <p class="count" role="status">Showing {{ data.results|length|num }} of {{ data.count|num }} companies{% if data.num_pages > 1 %}, page {{ data.page }} of {{ data.num_pages }}{% endif %}.</p>
+  {% include "partials/stock_table.html" with rows=data.results max_cap=max_cap caption="U.S.-listed companies" %}
+  {% include "partials/pagination.html" with data=data %}
+</section>
+{% endblock %}

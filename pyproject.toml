@@ -23,7 +23,7 @@ ignore = ["E501"]
 "app/settings.py" = ["E402", "F401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "core", "data_provider", "market", "sync"]
+known-first-party = ["app", "core", "data_provider", "market", "sync", "web"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "app.settings"

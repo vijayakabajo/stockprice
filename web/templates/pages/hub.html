@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load web %}
+{% block content %}
+<section class="wrap section section--top" aria-labelledby="hub-h">
+  <header class="hub-head">
+    <span class="icon icon--lg" aria-hidden="true">{% if kind == "sector" %}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>{% else %}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V10M19 21V10M9 21v-7M15 21v-7M2 10l10-7 10 7z"/></svg>{% endif %}</span>
+    <div>
+      <h1 id="hub-h">{% if kind == "sector" %}{{ hub.name }} stocks{% else %}Stocks listed on {{ hub.name }}{% endif %}</h1>
+      <p class="asof">Reference data as of <time datetime="{{ hub.as_of|isodate }}">{{ hub.as_of|asof }}</time>{% if companies.page > 1 %} · Page {{ companies.page }} of {{ companies.num_pages }}{% endif %}</p>
+    </div>
+  </header>
+  <p class="lead-answer">{{ copy.lead }}</p>
+
+  <dl class="statstrip">
+    <div><dt>Companies</dt><dd class="num">{{ hub.companies|num }}</dd></div>
+    <div><dt>Combined cap</dt><dd class="num">{{ hub.total_market_cap|cap }}</dd></div>
+    <div><dt>Total employees</dt><dd class="num">{{ hub.total_employees|num }}</dd></div>
+    <div><dt>Average cap</dt><dd class="num">{{ hub.average_market_cap|cap }}</dd></div>
+  </dl>
+
+  {% if primer %}
+  <section class="hub-section" aria-labelledby="about-h">
+    <h2 id="about-h">{% if kind == "sector" %}What is the {{ hub.name }} sector?{% else %}What is {{ hub.name }}?{% endif %}</h2>
+    <p class="answer">{{ primer }}</p>
+  </section>
+  {% endif %}
+
+  {% if hub.largest %}
+  <section class="card block" aria-labelledby="largest-h">
+    <h2 id="largest-h">What are the largest {{ copy.subject }}?</h2>
+    <p class="answer">The largest {{ copy.subject }} by market cap are {% for r in hub.largest|slice:":3" %}{{ r.display_name|default:r.name }} ({{ r.ticker }}){% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}, as of {{ hub.as_of|asof }}.</p>
+    {% include "partials/cap_bars.html" with rows=hub.largest max_cap=max_cap label="Largest companies by market cap" %}
+  </section>
+  {% endif %}
+
+  <section class="hub-section" aria-labelledby="all-h">
+    <h2 id="all-h">All {{ hub.companies|num }} {{ copy.subject }}</h2>
+    <p class="count">Ranked by market cap. Showing {{ companies.results|length|num }} of {{ companies.count|num }}{% if companies.num_pages > 1 %}, page {{ companies.page }} of {{ companies.num_pages }}{% endif %}.</p>
+    {% if kind == "sector" %}
+      {% include "partials/stock_table.html" with rows=companies.results max_cap=max_cap caption="Companies ranked by market cap" hide_sector=True %}
+    {% else %}
+      {% include "partials/stock_table.html" with rows=companies.results max_cap=max_cap caption="Companies ranked by market cap" hide_exchange=True %}
+    {% endif %}
+    {% include "partials/pagination.html" with data=companies %}
+  </section>
+
+  <div class="narrow">{% include "components/faq.html" with faqs=copy.faqs %}</div>
+  <p><a href="{{ index_url }}">← All {{ index_name|lower }}</a></p>
+</section>
+{% endblock %}

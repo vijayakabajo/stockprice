@@ -1,0 +1,108 @@
+/* Liquid glass, for dark mode.
+
+   Everything here reads tokens that are no-ops in light mode (tokens.css),
+   so light mode keeps its solid surfaces and this file only changes dark:
+
+   - Ambient light: soft colour glows fixed behind the page, so translucent
+     panels have something to catch. One fixed layer; it never repaints on scroll.
+   - Panels: a translucent white sheen that lightens with elevation (the
+     Material dark-theme rule) and a bright specular top edge.
+   - Real backdrop blur only where content moves behind an element: the
+     sticky header, the search dropdown and the sticky sidebar. Blurring every
+     card would cost scroll performance on phones for no visible difference. */
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--ambient);
+  pointer-events: none;
+}
+
+/* Panels --------------------------------------------------------------------- */
+
+.card,
+.statstrip,
+.table-wrap,
+.faq__item,
+.glossary > div,
+.author,
+.pull-quote,
+.steps li,
+.filters,
+.pager > a,
+.az a {
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+.card { box-shadow: var(--panel-shadow), var(--shadow); }
+.takeaways { box-shadow: var(--panel-shadow); }
+.notice, .disclaimer, .stat { box-shadow: var(--panel-shadow); }
+
+/* The liquid-glass rim: a bright edge that fades around the panel and picks
+   up the accent at the far corner. A 1px masked ring, so it never touches
+   the panel's own background or layout. Big panels only. */
+.card, .statstrip, .takeaways, .faq__item, .author { position: relative; }
+.card::before, .statstrip::before, .takeaways::before, .faq__item::before, .author::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* Blurred glass where content scrolls underneath ---------------------------- */
+
+.suggest {
+  background: var(--overlay);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+@media (min-width: 860px) {
+  .site-header {
+    background: var(--header-bg);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+}
+@media (min-width: 980px) {
+  .glance {
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+  }
+}
+
+/* Lit controls ---------------------------------------------------------------- */
+
+.btn:not(.btn--ghost) { box-shadow: var(--btn-shadow); }
+.brand__tile, .mono-tile { box-shadow: var(--panel-shadow); }
+
+/* "Reduce transparency" (Windows: Transparency effects off; macOS/iOS:
+   Reduce transparency). Readers asked for opaque surfaces, so panels become
+   solid and nothing is blurred; the black base, sheen, lit rim and ambient
+   light stay, since none of them sits behind text. */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass-blur: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #111113;
+      --surface-2: #18181B;
+      --panel: linear-gradient(180deg, #19191C, #0F0F11);
+      --header-bg: #0A0A0B;
+      --overlay: #18181B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #111113;
+    --surface-2: #18181B;
+    --panel: linear-gradient(180deg, #19191C, #0F0F11);
+    --header-bg: #0A0A0B;
+    --overlay: #18181B;
+  }
+}

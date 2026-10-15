@@ -11,8 +11,11 @@ one and resurrect stale entries.
 import hashlib
 import json
 import time
+from functools import wraps
 
+from django.conf import settings
 from django.core.cache import cache
+from django.http import HttpResponse, HttpResponseNotModified
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -78,3 +81,55 @@ class CachedAPIView(APIView):
         query = "&".join(f"{k}={v}" for k, v in sorted(request.query_params.items()))
         raw = f"{request.path}?{query}"
         return f"api:{data_version()}:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+
+def cache_html(params=()):
+    """
+    Caches a server-rendered page per data version, like CachedAPIView does
+    for JSON.
+
+    The key also carries settings.RELEASE, because a page changes on deploy
+    too (templates, hashed static file names) and not only on a sync. Only
+    the query parameters named in `params` are part of the key: anything else
+    (utm tags, cache busters) cannot multiply cache entries, and the view
+    must not read it. Only 200s are cached; redirects and 404s are rendered
+    every time. Off in DEBUG, so template edits show immediately.
+    """
+
+    def decorator(view):
+        @wraps(view)
+        def wrapper(request, *args, **kwargs):
+            if settings.DEBUG or request.method not in ("GET", "HEAD"):
+                return view(request, *args, **kwargs)
+
+            query = "&".join(f"{k}={request.GET.get(k)}" for k in sorted(params) if k in request.GET)
+            raw = f"{request.path}?{query}"
+            key = f"html:{data_version()}:{settings.RELEASE}:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+            hit = cache.get(key)
+            if hit is None:
+                response = view(request, *args, **kwargs)
+                if response.status_code != 200 or response.streaming:
+                    return response
+                if hasattr(response, "render"):
+                    response.render()
+                hit = {
+                    "content": response.content,
+                    "content_type": response["Content-Type"],
+                    "etag": hashlib.sha256(response.content).hexdigest()[:32],
+                }
+                cache.set(key, hit, timeout=RESPONSE_CACHE_TIMEOUT)
+
+            etag = f'"{hit["etag"]}"'
+            # GZipMiddleware weakens the ETag to W/"...", which browsers send back.
+            if etag in request.headers.get("If-None-Match", ""):
+                response = HttpResponseNotModified()
+            else:
+                response = HttpResponse(hit["content"], content_type=hit["content_type"])
+            response["ETag"] = etag
+            response["Cache-Control"] = f"public, max-age={HTTP_MAX_AGE}"
+            return response
+
+        return wrapper
+
+    return decorator

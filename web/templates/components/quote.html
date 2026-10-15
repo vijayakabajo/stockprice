@@ -1,0 +1,5 @@
+{# A sourced quotation: text, cite_title, cite_url, cite_publisher. Quote primary sources verbatim, never paraphrase inside a blockquote. #}
+<figure class="pull-quote">
+  <blockquote cite="{{ cite_url }}"><p>{{ text }}</p></blockquote>
+  <figcaption>— {{ cite_publisher }}, <cite><a href="{{ cite_url }}" target="_blank" rel="noopener">{{ cite_title }}</a></cite></figcaption>
+</figure>

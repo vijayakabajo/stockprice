@@ -34,6 +34,16 @@ def local_cache(settings):
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def plain_static_storage(settings):
+    """Pages render without a collectstatic manifest, as in CI."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    settings.SITE_URL = "https://example.test"
+
+
 @pytest.fixture
 def prototype_stocks(db):
     """

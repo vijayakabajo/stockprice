@@ -1,0 +1,32 @@
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="site-footer__cols">
+      <div class="site-footer__org">
+        <p class="site-footer__name">{{ site.name }}</p>
+        <p>{{ site.tagline }}. Built by <a href="{{ site.organization.url }}" rel="noopener">{{ site.organization.name }}</a>.</p>
+        <p><a class="mono" href="mailto:{{ site.organization.email }}">{{ site.organization.email }}</a></p>
+      </div>
+      <nav aria-label="Browse">
+        <p class="site-footer__head">Browse</p>
+        <ul>
+          <li><a href="{% url 'web:directory' %}">All stocks</a></li>
+          <li><a href="{% url 'web:sectors' %}">Sectors</a></li>
+          <li><a href="{% url 'web:exchanges' %}">Exchanges</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Learn">
+        <p class="site-footer__head">Learn</p>
+        <ul>
+          <li><a href="{% url 'web:guides' %}">Guides</a></li>
+          <li><a href="{% url 'web:glossary' %}">Glossary</a></li>
+          <li><a href="{% url 'web:about' %}">About and methodology</a></li>
+        </ul>
+      </nav>
+    </div>
+    <p class="site-footer__disc">
+      Informational and educational only. Not investment advice, and not an offer or solicitation to buy or sell any security.
+      Figures are indicative and dated to the data refresh shown beside them; market values move with price.
+      Company descriptions come from public filings and reference data. Verify against primary sources before you act.
+    </p>
+  </div>
+</footer>

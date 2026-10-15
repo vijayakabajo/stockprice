@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Page not found | {{ site.name }}{% endblock %}
+{% block robots %}noindex, follow{% endblock %}
+{% block content %}
+<section class="wrap section section--top narrow" aria-labelledby="nf-h">
+  <h1 id="nf-h">We could not find that page.</h1>
+  <p class="lead-answer">The company may have been delisted, or the address may be mistyped. Search by ticker or company name instead.</p>
+  <form class="hero__search" action="{% url 'web:search' %}" method="get" role="search" data-search>
+    <label class="visually-hidden" for="nf-q">Search by ticker or company name</label>
+    <input id="nf-q" name="q" type="search" placeholder="Ticker or company name" autocomplete="off">
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <p><a href="{% url 'web:directory' %}">Browse all stocks →</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,10 @@
+{# faqs: [(question, answer)], heading, id. Questions are H3s with the answer right below, always visible: no accordion hides an answer from a crawler or a reader. #}
+<section class="faq" id="{{ id|default:'faq' }}" aria-labelledby="{{ id|default:'faq' }}-h">
+  <h2 id="{{ id|default:'faq' }}-h">{{ heading|default:"Frequently asked questions" }}</h2>
+  <div class="faq__list">{% for q, a in faqs %}
+    <div class="faq__item">
+      <h3>{{ q }}</h3>
+      <p>{{ a }}</p>
+    </div>{% endfor %}
+  </div>
+</section>
