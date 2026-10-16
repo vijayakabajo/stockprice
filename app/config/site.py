@@ -9,7 +9,15 @@ built from a request's Host header.
 import os
 import time
 
-SITE_URL = os.getenv("SITE_URL", os.getenv("HOST_URL", "") or "http://localhost:8000").rstrip("/")
+# RENDER_EXTERNAL_URL (https://<name>.onrender.com) is a fallback for the
+# web service before a custom domain is set. The Celery worker has no
+# external URL, so SITE_URL must be set explicitly in production.
+SITE_URL = (
+    os.getenv("SITE_URL")
+    or os.getenv("HOST_URL")
+    or os.getenv("RENDER_EXTERNAL_URL")
+    or "http://localhost:8000"
+).rstrip("/")
 SITE_NAME = os.getenv("SITE_NAME", "Equity Profiles")
 SITE_TAGLINE = "Answer-first profiles of every U.S. listed company"
 SITE_DESCRIPTION = (
@@ -31,8 +39,9 @@ ORGANIZATION = {
 # Identifies a deploy. Part of every HTML cache key, so a deploy (new
 # templates, new hashed static names) never serves pages rendered by the old
 # code. Set it to the git SHA in deploys; the fallback is the process start
-# time, which is correct but shares less cache between workers.
-RELEASE = os.getenv("RELEASE") or str(int(time.time()))
+# time, which is correct but shares less cache between workers. On Render,
+# RENDER_GIT_COMMIT is set to the deployed SHA automatically.
+RELEASE = os.getenv("RELEASE") or os.getenv("RENDER_GIT_COMMIT") or str(int(time.time()))
 
 # IndexNow (Bing, Yandex, Seznam, Naver...): ping changed URLs after a sync.
 # The key is any 8-128 character [a-zA-Z0-9-] string; it is also served at

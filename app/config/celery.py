@@ -1,6 +1,6 @@
-import os
-
 from celery.schedules import crontab
+
+from app.config.redis import redis_url
 
 
 def get_celery_config(env_type):
@@ -22,10 +22,7 @@ def get_celery_config(env_type):
         3 if env_type == "production" else 4 if env_type == "preproduction" else 0  # local / fallback
     )
 
-    redis_host = os.getenv("REDIS_HOST", "127.0.0.1")
-    redis_port = os.getenv("REDIS_PORT", "6379")
-
-    broker = f"redis://{redis_host}:{redis_port}/{celery_redis_db}"
+    broker = redis_url(celery_redis_db)
     backend = broker
 
     return {

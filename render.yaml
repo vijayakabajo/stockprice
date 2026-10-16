@@ -1,0 +1,104 @@
+# Render Blueprint: the web site + API, the Celery worker, Postgres and
+# Key Value (Redis). Step-by-step instructions are in DEPLOY.md.
+#
+# Plans are left out, so Render uses its smallest paid instance for each
+# (web and worker 0.5c-512mb, Postgres 0.1c-256mb, Key Value 256mb). Change
+# them in the Blueprint preview or the dashboard. The region can't be changed
+# after the database exists, so pick it before the first sync.
+
+envVarGroups:
+  - name: stockprices-shared
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.12"
+      - key: ENV_TYPE
+        value: production
+      - key: DEBUG
+        value: "False"
+      # Part of the Celery queue name: web and worker must agree.
+      - key: PROJECT_NAME
+        value: shockprices
+      - key: SITE_NAME
+        value: Equity Profiles
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: "True"
+
+services:
+  - type: web
+    name: stockprices-web
+    runtime: python
+    region: oregon
+    branch: master
+    buildCommand: pip install -r requirements/prod.txt && python manage.py collectstatic --noinput
+    # Django's own tables (admin, auth, sessions), then our schema from sql/.
+    preDeployCommand: python manage.py migrate --noinput && python manage.py apply_sql
+    startCommand: gunicorn app.wsgi:application --workers 2 --timeout 60 --bind 0.0.0.0:$PORT --access-logfile -
+    healthCheckPath: /api/health/
+    envVars:
+      - fromGroup: stockprices-shared
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stockprices-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: stockprices-redis
+          property: connectionString
+      # Asked for when the Blueprint is created.
+      - key: MASSIVE_API_KEY
+        sync: false
+      - key: SITE_URL # https://www.your-domain.com, no trailing slash
+        sync: false
+      - key: ALLOWED_HOSTS # www.your-domain.com,your-domain.com (onrender.com is added automatically)
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS # https://www.your-domain.com
+        sync: false
+
+  # Celery worker with beat embedded (-B): one service runs the schedule in
+  # app/config/celery.py and the syncs. Keep it at exactly one instance, or
+  # every scheduled job runs once per instance.
+  - type: worker
+    name: stockprices-worker
+    runtime: python
+    region: oregon
+    branch: master
+    buildCommand: pip install -r requirements/prod.txt
+    startCommand: celery -A app worker -B --loglevel=info --concurrency=2
+    envVars:
+      - fromGroup: stockprices-shared
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stockprices-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: stockprices-redis
+          property: connectionString
+      - key: MASSIVE_API_KEY
+        sync: false
+      # The worker builds IndexNow URLs and has no external URL of its own.
+      - key: SITE_URL
+        sync: false
+
+  - type: keyvalue
+    name: stockprices-redis
+    region: oregon
+    # Internal connections only.
+    ipAllowList: []
+    # Evict only keys with a TTL (cache entries, task results), never the
+    # Celery queues, which have none.
+    maxmemoryPolicy: volatile-lru
+
+databases:
+  - name: stockprices-db
+    region: oregon
+    postgresMajorVersion: "16"
+    databaseName: shockprices_db
+    user: shockprices
+    ipAllowList: []

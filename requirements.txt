@@ -1,0 +1,2 @@
+# Render and other hosts look for this file. Real pins live in requirements/.
+-r requirements/prod.txt

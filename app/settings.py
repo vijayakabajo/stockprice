@@ -206,6 +206,15 @@ INDEXNOW_ENABLED = indexnow_enabled(ENV_TYPE)
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
+# Behind a TLS-terminating proxy (Render, a load balancer), requests reach
+# Django as plain HTTP. Trust the proxy's header so request.is_secure() is
+# right (CSRF origin checks on the admin login depend on it), and keep the
+# admin's cookies HTTPS-only.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 # ------------------------------------------------------------------------------
 # Default Auto Field
 # ------------------------------------------------------------------------------
